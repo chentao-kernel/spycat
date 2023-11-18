@@ -1,0 +1,67 @@
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
+#ifndef __OFFCPUTIME_H
+#define __OFFCPUTIME_H
+
+#define TASK_COMM_LEN		16
+
+struct pid_info {
+	__u32 pid;
+	__u32 tgid;
+};
+
+struct user_args {
+	__u32 pid;
+	__u32 tgid;
+	__u32 min_offcpu_ms;
+	__u32 max_offcpu_ms;
+};
+
+struct val_t {
+	__u64 delta;
+	char comm[TASK_COMM_LEN];
+};
+
+struct waker_t {
+	__u32 pid;
+	__u32 tgid;
+	__u32 t_pid; /* target pid */
+	char t_comm[TASK_COMM_LEN];
+	int user_stack_id;
+	int kern_stack_id;
+	char comm[TASK_COMM_LEN];
+	__u64 oncpu_ns;
+	__u64 offcpu_ns;
+	__u64 onrq_ns;
+	__u32 offcpu_id;
+	__u32 oncpu_id;
+};
+
+struct target_t {
+	__u32 pid;
+	__u32 tgid;
+	__u32 w_pid; /* waker pid */
+	char w_comm[TASK_COMM_LEN];
+	int user_stack_id;
+	int kern_stack_id;
+	char comm[TASK_COMM_LEN];
+	__u64 oncpu_ns;
+	__u64 offcpu_ns;
+	__u64 onrq_ns;
+	__u32 offcpu_id;
+	__u32 oncpu_id;
+};
+
+struct perf_event_t {
+	struct waker_t waker;
+	struct target_t target;
+	__u32 offtime_delta;
+	__u64 ts;
+};
+
+struct trace_event_t {
+	/* waker wake target */
+	struct waker_t waker;
+	struct target_t target;
+};
+
+#endif /* __OFFCPUTIME_H */
