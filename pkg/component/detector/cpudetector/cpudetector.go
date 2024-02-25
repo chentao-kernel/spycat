@@ -132,16 +132,26 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 			labels.AddStringValue(model.Waker, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
 		case userAttributes.GetKey() == "w_pid":
 			labels.AddIntValue(model.Pid_W, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "w_tgid":
+			labels.AddIntValue(model.Tgid_W, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "w_stack":
 			labels.AddStringValue(model.Stack_W, string(userAttributes.GetValue()))
 		case userAttributes.GetKey() == "w_onrq_oncpu":
 			labels.AddIntValue(model.RunqLatUs_W, int64(userAttributes.GetUintValue()/1000))
 		case userAttributes.GetKey() == "w_offcpu_oncpu":
 			labels.AddIntValue(model.CpuOffUs_W, int64(userAttributes.GetUintValue()/1000))
+
 		case userAttributes.GetKey() == "wt_comm":
-			labels.AddStringValue(model.Target, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
+			labels.AddStringValue(model.WTarget, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
 		case userAttributes.GetKey() == "wt_pid":
-			labels.AddIntValue(model.Pid_T, int64(userAttributes.GetUintValue()))
+			labels.AddIntValue(model.Pid_WT, int64(userAttributes.GetUintValue()))
+
+		case userAttributes.GetKey() == "t_comm":
+			labels.AddStringValue(model.Target, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
+		case userAttributes.GetKey() == "t_pid":
+			labels.AddIntValue(model.Tgid_W, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "t_tgid":
+			labels.AddIntValue(model.Tgid_T, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "t_stack":
 			labels.AddStringValue(model.Stack_T, string(userAttributes.GetValue()))
 		case userAttributes.GetKey() == "t_onrq_oncpu":

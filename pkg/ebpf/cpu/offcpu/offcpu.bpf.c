@@ -20,7 +20,7 @@ struct {
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, 127 * sizeof(u64));
 	__uint(max_entries, MAX_ENTRIES);
-} stackmap SEC(".maps");
+} stack_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -83,9 +83,9 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 		trace_event_p->waker.pid = (u32)pid_tgid;
 		trace_event_p->waker.tgid = pid_tgid >> 32;
 		bpf_get_current_comm(&trace_event_p->waker.comm, TASK_COMM_LEN);
-		trace_event_p->waker.kern_stack_id = bpf_get_stackid(ctx, &stackmap,
+		trace_event_p->waker.kern_stack_id = bpf_get_stackid(ctx, &stack_map,
 							BPF_F_FAST_STACK_CMP);
-		trace_event_p->waker.user_stack_id = bpf_get_stackid(ctx, &stackmap,
+		trace_event_p->waker.user_stack_id = bpf_get_stackid(ctx, &stack_map,
 							BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 			
 		/* target on runq time */
@@ -96,8 +96,8 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 		bpf_get_current_comm(&trace_event.waker.comm, TASK_COMM_LEN);
 		bpf_probe_read(&trace_event.waker.t_pid, sizeof(u32), &p->pid);
 		bpf_probe_read(trace_event.waker.t_comm, TASK_COMM_LEN, p->comm);
-		trace_event.waker.kern_stack_id = bpf_get_stackid(ctx, &stackmap, BPF_F_FAST_STACK_CMP);
-		trace_event.waker.user_stack_id = bpf_get_stackid(ctx, &stackmap,
+		trace_event.waker.kern_stack_id = bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
+		trace_event.waker.user_stack_id = bpf_get_stackid(ctx, &stack_map,
 									BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 		trace_event.target.onrq_ns = bpf_ktime_get_ns();
 		bpf_probe_read(&trace_event.target.pid, sizeof(u32), &p->pid);
@@ -175,9 +175,9 @@ int BPF_PROG(sched_switch_hook, bool preempt, struct task_struct *prev,
 	if (trace_event) {
 		trace_event->target.offcpu_ns = curr_ts;
 		trace_event->target.offcpu_id = cpu_id;
-		trace_event->target.kern_stack_id = bpf_get_stackid(ctx, &stackmap,
+		trace_event->target.kern_stack_id = bpf_get_stackid(ctx, &stack_map,
 								BPF_F_FAST_STACK_CMP);
-		trace_event->target.user_stack_id = bpf_get_stackid(ctx, &stackmap,
+		trace_event->target.user_stack_id = bpf_get_stackid(ctx, &stack_map,
 								BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 	} else {
 		struct trace_event_t event = {0};
@@ -186,9 +186,9 @@ int BPF_PROG(sched_switch_hook, bool preempt, struct task_struct *prev,
 		event.target.offcpu_ns = curr_ts;
 		event.target.offcpu_id = cpu_id;
 		bpf_probe_read(event.target.comm, TASK_COMM_LEN, prev->comm);
-		event.target.kern_stack_id = bpf_get_stackid(ctx, &stackmap,
+		event.target.kern_stack_id = bpf_get_stackid(ctx, &stack_map,
 								BPF_F_FAST_STACK_CMP);
-		event.target.user_stack_id = bpf_get_stackid(ctx, &stackmap,
+		event.target.user_stack_id = bpf_get_stackid(ctx, &stack_map,
 								BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 		bpf_map_update_elem(&start, &event.target.pid, &event, BPF_ANY);
 	}

@@ -13,6 +13,10 @@ var (
 )
 
 const (
+	SpyEventFieldMax int = 20
+)
+
+const (
 	ValueType_NONE    ValueType = 0
 	ValueType_INT8    ValueType = 1
 	ValueType_INT16   ValueType = 2
@@ -116,10 +120,10 @@ type SpyEvent struct {
 	Task      TaskInfo
 	// UserAttributes 数量
 	ParamsCnt      uint16
-	UserAttributes [16]KeyValue
+	UserAttributes [SpyEventFieldMax]KeyValue
 }
 
-func (s *SpyEvent) GetUserAttributes() *[16]KeyValue {
+func (s *SpyEvent) GetUserAttributes() *[SpyEventFieldMax]KeyValue {
 	return &s.UserAttributes
 }
 
@@ -181,7 +185,7 @@ func (s *SpyEvent) SetUserAttributeWithInt64(key string, value int64) {
 }
 
 func (s *SpyEvent) SetUserAttribute(kv KeyValue) error {
-	if s.ParamsCnt > 15 {
+	if s.ParamsCnt > uint16(SpyEventFieldMax-1) {
 		return fmt.Errorf("exceeded the max user attrubute size:%d", s.ParamsCnt)
 	}
 	s.UserAttributes[s.ParamsCnt] = kv

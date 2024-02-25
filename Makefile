@@ -12,7 +12,7 @@ RELEASE_VERSION := $(GIT_BRANCH)_$(GIT_COMIID)
 RELEASE_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 RELEASE_COMMIT := $(GIT_COMIID)
 RELEASE_GOVERSION := $(shell go version)
-RELEASE_AUTHOR := Dylane
+RELEASE_AUTHOR := dylane
 GOLDFLAGS :=
 
 EXTRA_CGO_CFLAGS := -I$(abspath lib/libbpf/lib/include) \

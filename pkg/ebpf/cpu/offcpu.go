@@ -11,12 +11,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 	"unsafe"
 
 	bpf "github.com/aquasecurity/libbpfgo"
 	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector"
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
+	"github.com/chentao-kernel/spycat/pkg/symtab"
 	"github.com/chentao-kernel/spycat/pkg/util"
 	"golang.org/x/sys/unix"
 )
@@ -76,7 +78,9 @@ type OffcpuSession struct {
 	// inner filed
 	PerfBuffer *bpf.PerfBuffer
 	// inner filed
-	Module *bpf.Module
+	Module     *bpf.Module
+	SymSession *symtab.SymSession
+	mapStacks  *bpf.BPFMap
 }
 
 func attachProgs(bpfModule *bpf.Module) error {
@@ -142,7 +146,7 @@ loop:
 	for {
 		select {
 		case data := <-dataChan:
-			b.ReadData(data)
+			b.HandleEvent(data)
 		case e := <-lostChan:
 			fmt.Printf("Events lost:%d\n", e)
 		case <-ctx.Done():
@@ -180,10 +184,17 @@ func (b *OffcpuSession) Start() error {
 		return fmt.Errorf("init args map failed:%v", err)
 	}
 
+	b.mapStacks, err = module.GetMap("stack_map")
+	if err != nil {
+		return fmt.Errorf("get stack map failed:%v", err)
+	}
+
 	err = attachProgs(module)
 	if err != nil {
 		return fmt.Errorf("attach program failed:%v", err)
 	}
+	b.Module = module
+
 	b.pollData(module)
 	return nil
 }
@@ -198,11 +209,34 @@ func (b *OffcpuSession) Stop() error {
 	return nil
 }
 
-func (b *OffcpuSession) ResolveStack() []byte {
+func (b *OffcpuSession) getStack(stackId int32) []byte {
+	if stackId < 0 {
+		return nil
+	}
+
+	stackIdU32 := uint32(stackId)
+	key := unsafe.Pointer(&stackIdU32)
+	stack, err := b.mapStacks.GetValue(key)
+	if err != nil {
+		return nil
+	}
+
+	return stack
+}
+
+func (b *OffcpuSession) ResolveStack(syms *bytes.Buffer, stackId int32, pid uint32, userspace bool) error {
+	if b.SymSession == nil {
+		return fmt.Errorf("sym session nil")
+	}
+	stack := b.getStack(stackId)
+	if stack == nil {
+		return fmt.Errorf("stack nil")
+	}
+	b.SymSession.WalkStack(syms, stack, pid, userspace)
 	return nil
 }
 
-func (b *OffcpuSession) ReadData(data []byte) {
+func (b *OffcpuSession) HandleEvent(data []byte) {
 	var event OffCpuEvent
 	spyEvent := &model.SpyEvent{}
 	if err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &event); err != nil {
@@ -210,30 +244,43 @@ func (b *OffcpuSession) ReadData(data []byte) {
 	}
 	//util.PrintStructFields(event)
 	spyEvent.Name = "offcpu"
-	spyEvent.TimeStamp = event.Ts
+	spyEvent.TimeStamp = uint64(time.Now().Unix())
 	spyEvent.Class.Name = cpudetector.DetectorCpuType
 	spyEvent.Class.Event = model.OffCpu
 	spyEvent.Task.Pid = event.Target.Tgid
 	spyEvent.Task.Tid = event.Target.Pid
+	//spyEvent.Task.Comm = strings.ReplaceAll(string(event.Target.Comm[:]), "\u0000", "")
 	spyEvent.Task.Comm = string(event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithUint32("w_pid", event.Waker.Pid)
+	spyEvent.SetUserAttributeWithUint32("w_tgid", event.Waker.Tgid)
 	spyEvent.SetUserAttributeWithUint32("w_onrq_oncpu", uint32(event.Waker.Oncpu_ns-event.Waker.Onrq_ns))
 	spyEvent.SetUserAttributeWithUint32("w_offcpu_oncpu", uint32(event.Waker.Oncpu_ns-event.Waker.Offcpu_ns))
 	// todo
-	spyEvent.SetUserAttributeWithByteBuf("w_stack", event.Waker.Comm[:])
 	spyEvent.SetUserAttributeWithByteBuf("w_comm", event.Waker.Comm[:])
+	syms := bytes.NewBuffer(nil)
+	b.ResolveStack(syms, event.Waker.Kern_stack_id, 0, false)
+	syms.Write([]byte("----"))
+	b.ResolveStack(syms, event.Waker.User_stack_id, event.Waker.Tgid, true)
+	spyEvent.SetUserAttributeWithByteBuf("w_stack", syms.Bytes())
 
 	spyEvent.SetUserAttributeWithUint32("wt_pid", event.Waker.T_pid)
 	spyEvent.SetUserAttributeWithByteBuf("wt_comm", event.Waker.T_Comm[:])
 	spyEvent.SetUserAttributeWithUint32("t_pid", event.Target.Pid)
+	spyEvent.SetUserAttributeWithUint32("t_tgid", event.Target.Tgid)
 	spyEvent.SetUserAttributeWithUint32("t_onrq_oncpu", uint32(event.Target.Oncpu_ns-event.Target.Onrq_ns))
 	spyEvent.SetUserAttributeWithUint32("t_offcpu_oncpu", uint32(event.Target.Oncpu_ns-event.Target.Offcpu_ns))
 	// todo
-	spyEvent.SetUserAttributeWithByteBuf("t_stack", event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithByteBuf("t_comm", event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithUint64("t_start_time", event.Target.Offcpu_ns)
 	spyEvent.SetUserAttributeWithUint64("t_end_time", event.Target.Oncpu_ns)
 	spyEvent.SetUserAttributeWithUint64("ts", event.Ts)
+
+	syms.Reset()
+	b.ResolveStack(syms, event.Target.Kern_stack_id, 0, false)
+	syms.Write([]byte("----"))
+	b.ResolveStack(syms, event.Target.User_stack_id, event.Target.Tgid, true)
+	spyEvent.SetUserAttributeWithByteBuf("t_stack", syms.Bytes())
+
 	/*
 		fmt.Printf("waker:%s, pid:%d, tgid:%d, target:%s, t_pid:%d, uid:%d, kid:%d\n", string(event.Waker.Comm[:]),
 			event.Waker.Pid, event.Waker.Tgid, string(event.Waker.T_Comm[:]), event.Waker.Pid, event.Waker.User_stack_id, event.Waker.Kern_stack_id)

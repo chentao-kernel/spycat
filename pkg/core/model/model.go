@@ -143,6 +143,8 @@ type CpuEvent struct {
 	Waker      string
 	Pid_W      uint32
 	Target     string
+	Pid_WT     uint32
+	WTarget    string
 	Pid_T      uint32
 	IrqOffUs_W uint32
 	CpuOffUs_W uint32

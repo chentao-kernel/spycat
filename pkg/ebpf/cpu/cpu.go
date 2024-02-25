@@ -5,20 +5,26 @@ import (
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
 	"github.com/chentao-kernel/spycat/pkg/log"
+	"github.com/chentao-kernel/spycat/pkg/symtab"
 )
 
 type BpfSession struct {
 	Session *core.Session
-	// inner filed
+	// inner field
 	PerfBuffer *bpf.PerfBuffer
-	// inner filed
+	// inner field
 	Module *bpf.Module
 }
 
 func NewBpfSession(name string, config *core.SessionConfig, buf chan *model.SpyEvent) core.BpfSpyer {
 	if name == "offcpu" {
+		symSession, err := symtab.NewSymSession()
+		if err != nil {
+			log.Loger.Error("sym session failed")
+		}
 		return &OffcpuSession{
-			Session: core.NewSession(name, config, buf),
+			Session:    core.NewSession(name, config, buf),
+			SymSession: symSession,
 		}
 	} else {
 		log.Loger.Error("session name:%s unknown\n", name)
