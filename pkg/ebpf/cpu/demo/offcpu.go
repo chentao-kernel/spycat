@@ -70,8 +70,7 @@ func pollData(bpfModule *bpf.Module) {
 		pb.Close()
 		stop()
 	}()
-	fmt.Printf("%-8s %-6s %-6s %-5s %-5s %-5s %-5s\n",
-		"TIME", "PID", "CPU1", "CPU2", "SPORT", "DPORT", "DELAY(us)")
+
 loop:
 	for {
 		select {

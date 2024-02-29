@@ -1,6 +1,7 @@
 package cpudetector
 
 type Config struct {
+	EventName     string
 	SessionInfos  []SubSession `mapstructure:"sessioninfo"`
 	EventChanSize int
 	SegmentSize   int `mapstrucrure:"segmentSize"`

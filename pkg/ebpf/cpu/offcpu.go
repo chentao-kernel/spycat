@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"os/signal"
@@ -18,6 +17,7 @@ import (
 	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector"
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"github.com/chentao-kernel/spycat/pkg/symtab"
 	"github.com/chentao-kernel/spycat/pkg/util"
 	"golang.org/x/sys/unix"
@@ -83,6 +83,18 @@ type OffcpuSession struct {
 	mapStacks  *bpf.BPFMap
 }
 
+func NewOffCpuBpfSession(name string, config *core.SessionConfig, buf chan *model.SpyEvent) core.BpfSpyer {
+	symSession, err := symtab.NewSymSession()
+	if err != nil {
+		log.Loger.Error("sym session failed")
+		return nil
+	}
+	return &OffcpuSession{
+		Session:    core.NewSession(name, config, buf),
+		SymSession: symSession,
+	}
+}
+
 func attachProgs(bpfModule *bpf.Module) error {
 	progIter := bpfModule.Iterator()
 	for {
@@ -140,8 +152,7 @@ func (b *OffcpuSession) pollData(bpfModule *bpf.Module) {
 		pb.Close()
 		stop()
 	}()
-	fmt.Printf("%-8s %-6s %-6s %-5s %-5s %-5s %-5s\n",
-		"TIME", "PID", "CPU1", "CPU2", "SPORT", "DPORT", "DELAY(us)")
+
 loop:
 	for {
 		select {
@@ -158,7 +169,7 @@ loop:
 func (b *OffcpuSession) Start() error {
 	//var module *bpf.Module
 	//var prog *bpf.BPFProg
-
+	fmt.Println("offcpu start trace")
 	err := unix.Setrlimit(unix.RLIMIT_MEMLOCK, &unix.Rlimit{
 		Cur: unix.RLIM_INFINITY,
 		Max: unix.RLIM_INFINITY,
@@ -240,7 +251,7 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	var event OffCpuEvent
 	spyEvent := &model.SpyEvent{}
 	if err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &event); err != nil {
-		log.Printf("parse event: %s", err)
+		log.Loger.Error("parse event: %s", err)
 	}
 	//util.PrintStructFields(event)
 	spyEvent.Name = "offcpu"

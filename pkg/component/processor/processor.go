@@ -153,6 +153,8 @@ func (d *DefaultProcessor) Consume(data *model.DataBlock) error {
 	// offcpu事件不聚合数据直接输出给spyexporter
 	case model.OffCpu:
 		d.consumer.Consume(data)
+	// oncpu直接upstream
+	case model.OnCpu:
 	}
 	return nil
 }

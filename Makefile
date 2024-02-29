@@ -42,6 +42,7 @@ libbpf:
 
 ebpf.o: libbpf
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.c -o $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.o
+	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.c -o $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.o
 
 all: generate libbpf ebpf.o
 	@echo "go build $(TARGET)"

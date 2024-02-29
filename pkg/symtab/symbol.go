@@ -10,17 +10,17 @@ import (
 
 type SymSession struct {
 	SymCache    *SymbolCache
-	roundNumber int
-	cacheSize   int
+	RoundNumber int
+	CacheSize   int
 }
 
 func NewSymSession() (*SymSession, error) {
 	var err error
 	session := &SymSession{
-		cacheSize:   100,
-		roundNumber: 10,
+		CacheSize:   100,
+		RoundNumber: 10,
 	}
-	session.SymCache, err = NewSymbolCache(session.cacheSize)
+	session.SymCache, err = NewSymbolCache(session.CacheSize)
 	if err != nil {
 		log.Loger.Error("new sym cache failed")
 		return nil, err
@@ -40,7 +40,7 @@ func (s *SymSession) WalkStack(line *bytes.Buffer, stack []byte, pid uint32, use
 			break
 		}
 		// tt pid != 0 user stack , pid == 0 kernel stack
-		sym := s.SymCache.BccResolve(pid, ip, s.roundNumber)
+		sym := s.SymCache.BccResolve(pid, ip, s.RoundNumber)
 		if !userspace && sym.Name == "" {
 			continue
 		}

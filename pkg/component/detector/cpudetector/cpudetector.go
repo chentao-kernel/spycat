@@ -1,14 +1,22 @@
 package cpudetector
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/chentao-kernel/spycat/pkg/component/consumer"
 	"github.com/chentao-kernel/spycat/pkg/component/detector"
+	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector/upstream"
+	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector/upstream/remote"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
 	"github.com/chentao-kernel/spycat/pkg/log"
+	"github.com/chentao-kernel/spycat/pkg/util/alignedticker"
+	"github.com/chentao-kernel/spycat/pkg/util/trie"
+
+	"github.com/pyroscope-io/pyroscope/pkg/storage/metadata"
+	"github.com/pyroscope-io/pyroscope/pkg/storage/segment"
 )
 
 const (
@@ -25,21 +33,37 @@ type CpuDetector struct {
 	stopChan        chan struct{}
 	consumers       []consumer.Consumer
 	tidExpiredQueue *tidDeleteQueue
-	lock            sync.RWMutex
+
+	lock sync.RWMutex
+
+	trieLock           sync.RWMutex
+	previousTries      map[string][]*trie.Trie
+	tries              map[string][]*trie.Trie
+	upstream           upstream.Upstream
+	startTimeTruncated time.Time
+	uploadRate         time.Duration
+	sampleRate         uint32
+	Server             string
 }
 
 func NewCpuDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
 	config, _ := cfg.(*Config)
 
 	cd := &CpuDetector{
-		cfg:             config,
+		cfg: config,
+		// noused now
 		cpuPidEvents:    make(map[uint32]map[uint32]*model.TimeSegments, 10000),
 		eventChan:       make(chan *model.SpyEvent, config.EventChanSize),
 		consumers:       consumers,
 		tidExpiredQueue: newTidDeleteQueue(),
 		stopChan:        make(chan struct{}),
+		previousTries:   make(map[string][]*trie.Trie),
+		tries:           make(map[string][]*trie.Trie),
 	}
-
+	// only oncpu use
+	cd.initializeTries(model.OnCpu)
+	cd.uploadRate = 10 * time.Second
+	cd.Server = "106.54.237.100:4040"
 	return cd
 }
 
@@ -47,14 +71,42 @@ func (c *CpuDetector) sendToConsumers() {
 
 }
 
+func (c *CpuDetector) initializeTries(appName string) {
+	if _, ok := c.previousTries[appName]; !ok {
+		// TODO Only set the trie if it's not already set
+		c.previousTries[appName] = []*trie.Trie{}
+		c.tries[appName] = []*trie.Trie{}
+
+		c.previousTries[appName] = append(c.previousTries[appName], nil)
+		c.tries[appName] = append(c.tries[appName], trie.New())
+	}
+}
+
 func (c *CpuDetector) Start() error {
 	go c.ConsumeChanEvents()
 	//go c.TidRemove(30*time.Second, 10*time.Second)
+
+	// init upstream parameter
+	rc := remote.RemoteConfig{
+		AuthToken:              "", //cfg.AuthToken,
+		UpstreamThreads:        4,
+		UpstreamAddress:        c.Server,
+		UpstreamRequestTimeout: 20,
+	}
+	up, err := remote.New(rc)
+	if err != nil {
+		return fmt.Errorf("new remote upstream: %v", err)
+	}
+	c.upstream = up
+	c.upstream.Start()
+
+	go c.UploadWithTicker()
 	return nil
 }
 
 func (c *CpuDetector) Stop() error {
 	close(c.stopChan)
+	c.upstream.Stop()
 	return nil
 }
 
@@ -62,15 +114,83 @@ func (c *CpuDetector) Name() string {
 	return DetectorCpuType
 }
 
+func addSuffix(name string, ptype string) (string, error) {
+	k, err := segment.ParseKey(name)
+	if err != nil {
+		return "", err
+	}
+	k.Add("__name__", k.AppName()+"."+string(ptype))
+	return k.Normalized(), nil
+}
+
+func (c *CpuDetector) UploadWithTicker() {
+	uploadTicker := alignedticker.NewAlignedTicker(c.uploadRate)
+	defer uploadTicker.Stop()
+	for {
+		select {
+		case endTimeTruncated := <-uploadTicker.C:
+			// 获取栈信息并上传
+			c.UploadTries(endTimeTruncated)
+		case <-c.stopChan:
+			c.Stop()
+			return
+		}
+	}
+}
+
+func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
+	c.trieLock.Lock()
+	defer c.trieLock.Unlock()
+
+	if !c.startTimeTruncated.IsZero() {
+		for name, tarr := range c.tries {
+			for i, ti := range tarr {
+				if ti != nil {
+					endTime := endTimeTruncated
+					startTime := endTime.Add(-c.uploadRate)
+					uploadTrie := ti
+					if !uploadTrie.IsEmpty() {
+						nameWithSuffix, _ := addSuffix(name, name)
+						c.upstream.Upload(&upstream.UploadJob{
+							Name:            nameWithSuffix,
+							StartTime:       startTime,
+							EndTime:         endTime,
+							SpyName:         name,
+							SampleRate:      c.sampleRate,
+							Units:           metadata.SamplesUnits,
+							AggregationType: metadata.SumAggregationType,
+							Trie:            uploadTrie,
+						})
+					}
+					// 新建一个trie树，删除掉历史栈信息
+					c.tries[name][i] = trie.New()
+				}
+			}
+		}
+	}
+	c.startTimeTruncated = endTimeTruncated
+}
+
 // send to next consumer
 func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 	var dataBlock *model.DataBlock
 	var err error
+
 	switch e.Name {
 	case model.OffCpu:
 		dataBlock, err = c.offcpuHandler(e)
 	case model.OnCpu:
-		dataBlock, err = c.oncpuHandler(e)
+		dataBlock, err = c.oncpuHandler(e, func(appName string, stack []byte, v uint64) error {
+			if len(stack) > 0 {
+				if _, ok := c.tries[appName]; !ok {
+					c.initializeTries(appName)
+				}
+				// 将栈信息插入到trie树中
+				c.tries[appName][0].Insert(stack, v, true)
+				//fmt.Printf("name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
+			}
+			return nil
+		})
 	case model.IrqOff:
 		dataBlock, err = c.irqoffHandler(e)
 	default:
@@ -172,7 +292,26 @@ func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error)
 	return model.NewDataBlock(model.OffCpu, labels, e.TimeStamp, metric), nil
 }
 
-func (c *CpuDetector) oncpuHandler(e *model.SpyEvent) (*model.DataBlock, error) {
+func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, uint64) error) (*model.DataBlock, error) {
+
+	var count uint64
+	var stack []byte
+
+	c.trieLock.Lock()
+	defer c.trieLock.Unlock()
+	for i := 0; i < int(e.ParamsCnt); i++ {
+		userAttributes := e.UserAttributes[i]
+		switch {
+		case userAttributes.GetKey() == "count":
+			count = userAttributes.GetUintValue()
+		case userAttributes.GetKey() == "stack":
+			stack = userAttributes.GetValue()
+		case userAttributes.GetKey() == "sampleRate":
+			c.sampleRate = uint32(userAttributes.GetUintValue())
+		}
+	}
+	cb(e.Name, stack, count)
+	//fmt.Printf("pid:%d, comm:%s, count:%d, stack:%s", pid, comm, count, stack)
 	return nil, nil
 }
 

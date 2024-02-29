@@ -82,7 +82,7 @@ type TaskInfo struct {
 	ContainerId   string
 	ContainerName string
 	NameSpace     string
-	Stack         uint8
+	Stack         []byte
 	Latency       uint32
 }
 
