@@ -14,6 +14,7 @@ import (
 	"unsafe"
 
 	bpf "github.com/aquasecurity/libbpfgo"
+	"github.com/chentao-kernel/spycat/pkg/app/config"
 	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector"
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
@@ -83,14 +84,14 @@ type OffcpuSession struct {
 	mapStacks  *bpf.BPFMap
 }
 
-func NewOffCpuBpfSession(name string, config *core.SessionConfig, buf chan *model.SpyEvent) core.BpfSpyer {
-	symSession, err := symtab.NewSymSession()
+func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEvent) core.BpfSpyer {
+	symSession, err := symtab.NewSymSession(cfg.SymbolCacheSize)
 	if err != nil {
 		log.Loger.Error("sym session failed")
 		return nil
 	}
 	return &OffcpuSession{
-		Session:    core.NewSession(name, config, buf),
+		Session:    core.NewSession(name, &core.SessionConfig{}, buf),
 		SymSession: symSession,
 	}
 }

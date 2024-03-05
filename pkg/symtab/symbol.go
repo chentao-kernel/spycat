@@ -14,13 +14,13 @@ type SymSession struct {
 	CacheSize   int
 }
 
-func NewSymSession() (*SymSession, error) {
+func NewSymSession(cacheSize int) (*SymSession, error) {
 	var err error
 	session := &SymSession{
-		CacheSize:   100,
+		CacheSize:   cacheSize,
 		RoundNumber: 10,
 	}
-	session.SymCache, err = NewSymbolCache(session.CacheSize)
+	session.SymCache, err = NewSymbolCache(cacheSize)
 	if err != nil {
 		log.Loger.Error("new sym cache failed")
 		return nil, err

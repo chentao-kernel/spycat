@@ -27,8 +27,8 @@ func Start() {
 	receiver := spy.GetReceiver()
 
 	bpfSpyers := []core.BpfSpyer{
-		cpu.NewOffCpuBpfSession(model.OnCpu, &core.SessionConfig{}, receiver.RcvChan()),
-		cpu.NewOnCpuBpfSession(model.OffCpu, &core.SessionConfig{}, receiver.RcvChan()),
+		cpu.NewOffCpuBpfSession(model.OnCpu, nil, receiver.RcvChan()),
+		cpu.NewOnCpuBpfSession(model.OffCpu, nil, receiver.RcvChan()),
 	}
 
 	for _, spyer := range bpfSpyers {

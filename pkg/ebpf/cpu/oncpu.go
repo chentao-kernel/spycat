@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	bpf "github.com/aquasecurity/libbpfgo"
+	"github.com/chentao-kernel/spycat/pkg/app/config"
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
 	"github.com/chentao-kernel/spycat/pkg/log"
@@ -58,20 +59,20 @@ type OncpuSession struct {
 	sampleRate    uint32
 }
 
-func NewOnCpuBpfSession(name string, config *core.SessionConfig, buf chan *model.SpyEvent) core.BpfSpyer {
+func NewOnCpuBpfSession(name string, cfg *config.ONCPU, buf chan *model.SpyEvent) core.BpfSpyer {
 
-	symSession, err := symtab.NewSymSession()
+	symSession, err := symtab.NewSymSession(cfg.SymbolCacheSize)
 	if err != nil {
 		log.Loger.Error("sym session failed")
 		return nil
 	}
 
 	return &OncpuSession{
-		Session:    core.NewSession(name, config, buf),
+		Session:    core.NewSession(name, &core.SessionConfig{}, buf),
 		SymSession: symSession,
-		sampleRate: 100,
+		sampleRate: uint32(cfg.SampleRate),
 		// 10秒上传一次数据
-		ticker: time.NewTicker(10 * time.Second),
+		ticker: time.NewTicker(cfg.UploadRate),
 	}
 }
 

@@ -63,7 +63,7 @@ func NewCpuDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
 	// only oncpu use
 	cd.initializeTries(model.OnCpu)
 	cd.uploadRate = 10 * time.Second
-	cd.Server = "106.54.237.100:4040"
+	cd.Server = "106.54.237.100"
 	return cd
 }
 
@@ -187,7 +187,7 @@ func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 				}
 				// 将栈信息插入到trie树中
 				c.tries[appName][0].Insert(stack, v, true)
-				//fmt.Printf("name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
+				//fmt.Printf("tao name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
 			}
 			return nil
 		})
