@@ -46,6 +46,10 @@ func (a *AppSpy) GetReceiver() receiver.Receiver {
 	return a.receiver
 }
 
+func (a *AppSpy) Init(cfg any) error {
+	return a.detecorManager.InitAllDetectors(cfg)
+}
+
 func (a *AppSpy) Start() error {
 	err := a.detecorManager.StartAllDetectors()
 	if err != nil {

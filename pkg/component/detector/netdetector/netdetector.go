@@ -35,6 +35,10 @@ func (n *NetDetector) sendToConsumers() {
 
 }
 
+func (n *NetDetector) Init(cfg any) error {
+	return nil
+}
+
 func (n *NetDetector) Start() error {
 	go n.ConsumeChanEvents()
 	return nil

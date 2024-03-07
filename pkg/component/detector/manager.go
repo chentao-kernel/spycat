@@ -38,6 +38,16 @@ func NewDetectorManager(detectors ...Detector) (*DetectorManager, error) {
 	}, nil
 }
 
+func (d *DetectorManager) InitAllDetectors(cfg any) error {
+	for _, detector := range d.detectors {
+		log.Loger.Info("init detector:%s", detector.Name())
+		if err := detector.Init(cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (d *DetectorManager) StartAllDetectors() error {
 	for _, detector := range d.detectors {
 		log.Loger.Info("start detector:%s", detector.Name())

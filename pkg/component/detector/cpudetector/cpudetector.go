@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chentao-kernel/spycat/pkg/app/config"
 	"github.com/chentao-kernel/spycat/pkg/component/consumer"
 	"github.com/chentao-kernel/spycat/pkg/component/detector"
 	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector/upstream"
@@ -63,7 +64,6 @@ func NewCpuDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
 	// only oncpu use
 	cd.initializeTries(model.OnCpu)
 	cd.uploadRate = 10 * time.Second
-	cd.Server = "106.54.237.100"
 	return cd
 }
 
@@ -82,25 +82,34 @@ func (c *CpuDetector) initializeTries(appName string) {
 	}
 }
 
+func (c *CpuDetector) Init(cfg any) error {
+	config, ok := cfg.(*config.ONCPU)
+	if ok {
+		// init upstream parameter
+		rc := remote.RemoteConfig{
+			AuthToken:              "", //cfg.AuthToken,
+			UpstreamThreads:        config.UploadThreads,
+			UpstreamAddress:        config.Server,
+			UpstreamRequestTimeout: config.UploadTimeout, // add timeout
+		}
+		up, err := remote.New(rc)
+		if err != nil {
+			return fmt.Errorf("new remote upstream: %v", err)
+		}
+		c.upstream = up
+		c.upstream.Start()
+
+		go c.UploadWithTicker()
+	}
+
+	return nil
+}
+
 func (c *CpuDetector) Start() error {
+	//util.PrintStack()
 	go c.ConsumeChanEvents()
 	//go c.TidRemove(30*time.Second, 10*time.Second)
 
-	// init upstream parameter
-	rc := remote.RemoteConfig{
-		AuthToken:              "", //cfg.AuthToken,
-		UpstreamThreads:        4,
-		UpstreamAddress:        c.Server,
-		UpstreamRequestTimeout: 20,
-	}
-	up, err := remote.New(rc)
-	if err != nil {
-		return fmt.Errorf("new remote upstream: %v", err)
-	}
-	c.upstream = up
-	c.upstream.Start()
-
-	go c.UploadWithTicker()
 	return nil
 }
 
@@ -143,6 +152,7 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 	defer c.trieLock.Unlock()
 
 	if !c.startTimeTruncated.IsZero() {
+		// name is app-name
 		for name, tarr := range c.tries {
 			for i, ti := range tarr {
 				if ti != nil {
@@ -150,12 +160,12 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 					startTime := endTime.Add(-c.uploadRate)
 					uploadTrie := ti
 					if !uploadTrie.IsEmpty() {
-						nameWithSuffix, _ := addSuffix(name, name)
+						nameWithSuffix, _ := addSuffix("aa", "cpu")
 						c.upstream.Upload(&upstream.UploadJob{
 							Name:            nameWithSuffix,
 							StartTime:       startTime,
 							EndTime:         endTime,
-							SpyName:         name,
+							SpyName:         "ebpfspy",
 							SampleRate:      c.sampleRate,
 							Units:           metadata.SamplesUnits,
 							AggregationType: metadata.SumAggregationType,

@@ -33,6 +33,10 @@ func NewIoDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
 	return io
 }
 
+func (io *IoDetector) Init(cfg any) error {
+	return nil
+}
+
 func (io *IoDetector) Start() error {
 	go io.ConsumeChanEvents()
 	return nil

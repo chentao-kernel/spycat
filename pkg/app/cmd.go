@@ -96,6 +96,12 @@ func RunSpy(cfg interface{}, cb func(interface{}, chan *model.SpyEvent) core.Bpf
 	if err != nil {
 		fmt.Printf("New App Spy failed:%v\n", err)
 	}
+
+	err = spy.Init(cfg)
+	if err != nil {
+		return fmt.Errorf("spy init failed:%v\n", err)
+	}
+
 	err = spy.Start()
 	if err != nil {
 		fmt.Printf("Spy start failed:%v\n", err)

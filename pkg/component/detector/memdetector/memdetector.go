@@ -35,6 +35,10 @@ func (mem *MemDetector) sendToConsumers() {
 
 }
 
+func (mem *MemDetector) Init(cfg any) error {
+	return nil
+}
+
 func (mem *MemDetector) Start() error {
 	go mem.ConsumeChanEvents()
 	return nil
