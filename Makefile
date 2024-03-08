@@ -1,6 +1,6 @@
-CLANG ?= clang-14
-STRIP ?= llvm-strip-14
-OBJCOPY ?= llvm-objcopy-14
+CLANG ?= clang
+STRIP ?= llvm-strip
+OBJCOPY ?= llvm-objcopy
 CFLAGS := -O2 -g -Wall -Werror $(CFGAGS)
 CFLAGS := -ggdb -gdwarf -O2 -Wall -fpie -Wno-unused-variable -Wno-unused-function $(CFLAGS)
 PWD := $(shell pwd)
