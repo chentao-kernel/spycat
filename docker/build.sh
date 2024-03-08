@@ -1,0 +1,105 @@
+#!/bin/bash
+
+#refrence:https://www.kancloud.cn/woshigrey/docker/935037
+
+read -r -d '' USAGE << EOF || true
+usage: ./args.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
+	-b              build image
+	-c              compile
+	-t              tar binary
+        -V 0.1.2 -t     tar binary with 0.1.2 version
+EOF
+
+VERSION="0.1"
+CUR_PATH=$(pwd)
+SOURCE_PATH=$(dirname "$CUR_PATH")
+IMAGE="spycat"
+BIN_VER="0.1.0"
+
+build_image() {
+        echo "build image start"
+        if [[ -f "${CUR_PATH}/Dockerfile" ]]; then
+                docker build -t "${IMAGE}" -f Dockerfile .
+        else
+                echo "docker file no found"
+        fi
+
+        if [[ -n "$(docker images | grep ${IMAGE})" ]]; then
+                echo "build image success"
+        else
+                echo "build image failed"
+        fi
+}
+
+compile_bin() {
+        echo "compile bin start"
+        image_id=$(docker images | grep ${IMAGE} | awk '{print $3}')
+        if [[ -n "${image_id}" ]];then
+                container_id=$(docker ps | grep ${IMAGE} | awk '{print $1}')
+                if [[ -n "${container_id}" ]];then
+                        docker exec -it ${container_id} bash -c "cd /root/spycat;make all"
+                else
+                        docker run -itd --name ${IMAGE} --privileged -v ${SOURCE_PATH}:/root/spycat --net host ${image_id}
+                        container_id=$(docker ps | grep ${IMAGE} | awk '{print $1}')
+                        docker exec -it ${container_id} bash -c "cd /root/spycat;make all"
+                fi
+        else
+                echo "image no found:${image_id}"
+        fi
+
+        if [[ -f "${SOURCE_PATH}/spycat" ]]; then
+                echo "compile bin success"
+        else
+                echo "compile bin failed"
+        fi
+}
+
+tar_bin() {
+        echo "tar bin start"
+        if [[ -f "${SOURCE_PATH}/spycat" ]]; then
+                cp ${SOURCE_PATH}/spycat .
+                tar -zcvf spycat_${BIN_VER}.tar.gz spycat
+                rm spycat
+                echo "tar bin success"
+        else 
+                echo "tar bin not found"
+        fi
+}
+
+parse_arguments() {
+        while [[ $# -gt 0 ]];do
+                case $1 in
+                        -v|--version)
+                                echo $VERSION
+                                shift 1
+                                ;;
+                        -V|--bin_ver)
+                                BIN_VER=$2
+                                echo "BIN_VER:${BIN_VER}"
+                                shift 2
+                                ;;
+                        -h|--help)
+                                echo "$USAGE"
+                                exit 0
+                                ;;
+                        -t|--tar)
+                                tar_bin
+                                shift 1
+                                ;;
+                        -b|--build)
+                                build_image
+                                shift 1
+                                ;;
+                        -c|--compile)
+                                compile_bin
+                                shift 1
+                                ;;
+                        *)
+                                echo "$USAGE"
+                                exit 1
+                                ;;
+                esac
+        done
+}
+
+parse_arguments "$@"
