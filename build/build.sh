@@ -10,7 +10,16 @@ usage: ./args.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
         -V 0.1.2 -t     tar binary with 0.1.2 version
 EOF
 
-VERSION="0.1"
+die() {
+    echo "ERROR: ${*}"
+    exit 1
+}
+
+info() {
+    echo "INFO: ${*}"
+}
+
+VERSION="0.1.0"
 CUR_PATH=$(pwd)
 SOURCE_PATH=$(dirname "$CUR_PATH")
 IMAGE="spycat"
@@ -21,18 +30,18 @@ build_image() {
         if [[ -f "${CUR_PATH}/Dockerfile" ]]; then
                 docker build -t "${IMAGE}" -f Dockerfile .
         else
-                echo "docker file no found"
+                die "docker file no found"
         fi
 
         if [[ -n "$(docker images | grep ${IMAGE})" ]]; then
-                echo "build image success"
+                info "build image success"
         else
-                echo "build image failed"
+                die "build image failed"
         fi
 }
 
 compile_bin() {
-        echo "compile bin start"
+        info "compile bin start"
         image_id=$(docker images | grep ${IMAGE} | awk '{print $3}')
         if [[ -n "${image_id}" ]];then
                 container_id=$(docker ps | grep ${IMAGE} | awk '{print $1}')
@@ -44,25 +53,25 @@ compile_bin() {
                         docker exec -it ${container_id} bash -c "cd /root/spycat;make all"
                 fi
         else
-                echo "image no found:${image_id}"
+                die "image no found:${image_id}"
         fi
 
         if [[ -f "${SOURCE_PATH}/spycat" ]]; then
-                echo "compile bin success"
+                info "compile bin success"
         else
-                echo "compile bin failed"
+                die "compile bin failed"
         fi
 }
 
 tar_bin() {
-        echo "tar bin start"
+        info "tar bin start"
         if [[ -f "${SOURCE_PATH}/spycat" ]]; then
                 cp ${SOURCE_PATH}/spycat .
                 tar -zcvf spycat_${BIN_VER}.tar.gz spycat
                 rm spycat
-                echo "tar bin success"
+		info "tar bin success"
         else 
-                echo "tar bin not found"
+                die "tar bin not found"
         fi
 }
 
