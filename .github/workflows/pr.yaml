@@ -1,0 +1,58 @@
+name: PR
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+jobs:
+  analyze-code:
+    name: Analyze Code
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        uses: ./.github/actions/build-dependencies
+      - name: Lint
+        run: |
+          if test -z "$(gofmt -l .)"; then
+            echo "Congrats! There is nothing to fix."
+          else
+            echo "The following lines should be fixed."
+            gofmt -s -d .
+            exit 1
+          fi
+        shell: bash
+      - name: Install revive
+        run: |
+          go install github.com/mgechev/revive@e33fb87
+          sudo cp $HOME/go/bin/revive /usr/bin/
+        shell: bash
+      - name: Check Code Style
+        run: |
+          make fmt-check
+        shell: bash
+      - name: Lint (Revive)
+        run: |
+          make lint-check
+        shell: bash
+  spycat-unit-tests:
+    name: spycat Unit Tests
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        go-version: [ 1.20 ]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        uses: ./.github/actions/build-dependencies
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Test Spycat
+        run: |
+          sudo make all
