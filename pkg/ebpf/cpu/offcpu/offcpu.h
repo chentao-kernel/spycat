@@ -4,6 +4,7 @@
 #include "vmlinux.h"
 
 #define TASK_COMM_LEN 16
+#define SCHED_CACHE_SIZE 1024
 
 struct pid_info {
 	__u32 pid;
@@ -15,6 +16,7 @@ struct user_args {
 	__u32 tgid;
 	__u32 min_offcpu_ms;
 	__u32 max_offcpu_ms;
+	__u32 onrq_us;
 };
 
 struct val_t {
@@ -65,6 +67,18 @@ struct trace_event_t {
 	/* waker wake target */
 	struct waker_t waker;
 	struct target_t target;
+};
+
+struct sched_record {
+	u32 pid;
+	u32 prio;
+	u64 ts;
+};
+
+struct sched_cached {
+	int cpu;
+	u32 id;
+	struct sched_record records[SCHED_CACHE_SIZE];
 };
 
 #endif /* __OFFCPUTIME_H */

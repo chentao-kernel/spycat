@@ -72,6 +72,7 @@ type UserArgs struct {
 	Tgid          uint32
 	Min_offcpu_ms uint32
 	Max_offcpu_ms uint32
+	Onrq_us       uint32
 }
 
 type OffcpuSession struct {
@@ -82,6 +83,7 @@ type OffcpuSession struct {
 	Module     *bpf.Module
 	SymSession *symtab.SymSession
 	mapStacks  *bpf.BPFMap
+	Args       UserArgs
 }
 
 func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -93,11 +95,18 @@ func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEve
 	return &OffcpuSession{
 		Session:    core.NewSession(name, &core.SessionConfig{}, buf),
 		SymSession: symSession,
+		Args: UserArgs{
+			Pid:           math.MaxUint32,
+			Tgid:          uint32(cfg.Pid),
+			Min_offcpu_ms: uint32(cfg.MinOffcpuMs),
+			Max_offcpu_ms: uint32(cfg.MaxOffcpuMs),
+			Onrq_us:       uint32(cfg.OnRqUs),
+		},
 	}
 }
 
-func attachProgs(bpfModule *bpf.Module) error {
-	progIter := bpfModule.Iterator()
+func (b *OffcpuSession) attachProgs() error {
+	progIter := b.Module.Iterator()
 	for {
 		prog := progIter.NextProgram()
 		if prog == nil {
@@ -111,46 +120,41 @@ func attachProgs(bpfModule *bpf.Module) error {
 	return nil
 }
 
-func initArgsMap(bpfModule *bpf.Module) error {
+func (b *OffcpuSession) initArgsMap() error {
 	var id uint32 = 0
 	args := &UserArgs{
-		Pid:           math.MaxUint32,
-		Tgid:          math.MaxUint32,
-		Min_offcpu_ms: 1,
-		Max_offcpu_ms: 1000000,
+		Pid:           b.Args.Pid,
+		Tgid:          b.Args.Tgid,
+		Min_offcpu_ms: b.Args.Min_offcpu_ms,
+		Max_offcpu_ms: b.Args.Max_offcpu_ms,
+		Onrq_us:       b.Args.Onrq_us,
 	}
-
-	maps, err := bpfModule.GetMap("args_map")
+	maps, err := b.Module.GetMap("args_map")
 	if err != nil {
 		return fmt.Errorf("get map failed:%v", err)
 	}
 	maps.Update(unsafe.Pointer(&id), unsafe.Pointer(args))
 	fmt.Printf("update user_args succeess:\n")
-	util.PrintStructFields(*args)
+	util.PrintStructFields(b.Args)
 	return nil
 }
 
-func (b *OffcpuSession) bpfSessionInit(module *bpf.Module, perf *bpf.PerfBuffer) {
-	b.Module = module
-	b.PerfBuffer = perf
-}
-
-func (b *OffcpuSession) pollData(bpfModule *bpf.Module) {
+func (b *OffcpuSession) pollData() {
 	dataChan := make(chan []byte)
 	lostChan := make(chan uint64)
+	var err error
 
-	pb, err := bpfModule.InitPerfBuf("perf_map", dataChan, lostChan, 1)
+	b.PerfBuffer, err = b.Module.InitPerfBuf("perf_map", dataChan, lostChan, 1)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
-	b.bpfSessionInit(bpfModule, pb)
-	pb.Start()
+	b.PerfBuffer.Start()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer func() {
-		pb.Stop()
-		pb.Close()
+		b.PerfBuffer.Stop()
+		b.PerfBuffer.Close()
 		stop()
 	}()
 
@@ -181,33 +185,32 @@ func (b *OffcpuSession) Start() error {
 
 	args := bpf.NewModuleArgs{BPFObjBuff: offcpuBpf}
 
-	module, err := bpf.NewModuleFromBufferArgs(args)
+	b.Module, err = bpf.NewModuleFromBufferArgs(args)
 	if err != nil {
 		return fmt.Errorf("load module failed:%v", err)
 	}
 
-	err = module.BPFLoadObject()
+	err = b.Module.BPFLoadObject()
 	if err != nil {
 		return fmt.Errorf("load object failed:%v", err)
 	}
 
-	err = initArgsMap(module)
+	err = b.initArgsMap()
 	if err != nil {
 		return fmt.Errorf("init args map failed:%v", err)
 	}
 
-	b.mapStacks, err = module.GetMap("stack_map")
+	b.mapStacks, err = b.Module.GetMap("stack_map")
 	if err != nil {
 		return fmt.Errorf("get stack map failed:%v", err)
 	}
 
-	err = attachProgs(module)
+	err = b.attachProgs()
 	if err != nil {
 		return fmt.Errorf("attach program failed:%v", err)
 	}
-	b.Module = module
 
-	b.pollData(module)
+	b.pollData()
 	return nil
 }
 
@@ -271,6 +274,7 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	spyEvent.SetUserAttributeWithByteBuf("w_comm", event.Waker.Comm[:])
 	syms := bytes.NewBuffer(nil)
 	b.ResolveStack(syms, event.Waker.Kern_stack_id, 0, false)
+	// split kernel and user stack info
 	syms.Write([]byte("----"))
 	b.ResolveStack(syms, event.Waker.User_stack_id, event.Waker.Tgid, true)
 	spyEvent.SetUserAttributeWithByteBuf("w_stack", syms.Bytes())
