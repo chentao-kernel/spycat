@@ -12,6 +12,8 @@ GIT_COMIID := $(shell git rev-parse --short HEAD)
 GIT_TAG := $(shell git describe --tags --abbrev=0)
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 CLANG_FMT := clang-format-14
+ARCH := $(shell uname -m | sed 's/x86_64/x86/g; s/aarch64/arm64/g')
+ARCH_GO := $(shell uname -m | sed 's/x86_64/amd64/g; s/aarch64/arm64/g')
 
 RELEASE_VERSION := $(GIT_BRANCH)_$(GIT_COMIID)
 RELEASE_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -28,12 +30,11 @@ EXTRA_CGO_LDFLAGS := -L$(abspath lib/libbpf/lib/lib64) -lbpf \
 TARGET ?= spycat
 EBPF_SRC := $(PWD)/pkg/ebpf
 APP_SRC := $(PWD)/cmd/spycat/main.go 
-LIBBPF := $(PWD)/lib/libbpf
-LIBBCC := $(PWD)/lib/bcc
+LIBBPF_SRC := $(PWD)/lib/libbpf
+LIBBCC_SRC := $(PWD)/lib/bcc
 INCLUDE := -I$(PWD)/pkg/ebpf/headers
 
-CLANG_COMPILE := $(CLANG) $(CFLAGS) $(INCLUDE) -target bpf -D__TARGET_ARCH_x86 $(BPFAPI)
-
+CLANG_COMPILE := $(CLANG) $(CFLAGS) $(INCLUDE) -target bpf -D__TARGET_ARCH_$(ARCH) $(BPFAPI)
 
 .PHONY: all generate
 
@@ -42,19 +43,19 @@ generate: export BPF_CFLAGS := $(CFLAGS)
 generate:
 	go generate $(EBPF_SRC)/uprobe/uprobe.go
 
-
 libbpf:
-	make -C $(LIBBPF)
-	make -C $(LIBBCC)
+	make -C $(LIBBPF_SRC) libbpf
+	make -C $(LIBBCC_SRC)
 
 ebpf.o: libbpf
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.c -o $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.c -o $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.o
 
-all: generate libbpf ebpf.o
+all: generate ebpf.o
 	@echo "go build $(TARGET)"
 	CGO_CFLAGS="$(EXTRA_CGO_CFLAGS)" \
 	CGO_LDFLAGS="$(EXTRA_CGO_LDFLAGS)" \
+	GOOS=linux GOARCH=$(ARCH_GO) \
 	go build -ldflags "-linkmode external -extldflags '-static' -X 'main.version=$(RELEASE_VERSION)' \
 	-X 'main.commitId=$(RELEASE_COMMIT)' -X 'main.releaseTime=$(RELEASE_TIME)' \
 	-X 'main.goVersion=$(RELEASE_GOVERSION)' -X 'main.author=$(RELEASE_AUTHOR)'" -o $(TARGET) $(APP_SRC)
@@ -98,5 +99,5 @@ lint-check:
 
 clean:
 	find . -name "*.o" | xargs rm -f
-	#make -C $(LIBBPF) clean
-	#make -C $(LIBBCC) clean
+	#make -C $(LIBBPF_SRC) clean
+	#make -C $(LIBBCC_SRC) clean
