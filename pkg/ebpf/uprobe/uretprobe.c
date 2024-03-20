@@ -1,4 +1,4 @@
-//go:build ignore
+// go:build ignore
 
 #include "common.h"
 
@@ -24,15 +24,18 @@ struct {
 const struct event *unused __attribute__((unused));
 
 SEC("uretprobe/bash_readline")
-int uretprobe_bash_readline(struct pt_regs *ctx) {
+int uretprobe_bash_readline(struct pt_regs *ctx)
+{
 	struct event event;
 
 	event.pid = bpf_get_current_pid_tgid();
 	event.tgid = bpf_get_current_pid_tgid() >> 32;
 	event.ts = bpf_ktime_get_ns();
-	bpf_probe_read(&event.line, sizeof(event.line), (void *)PT_REGS_RC(ctx));
+	bpf_probe_read(&event.line, sizeof(event.line),
+		       (void *)PT_REGS_RC(ctx));
 	bpf_get_current_comm(&event.comm, TASK_COMM_LEN);
-	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+	bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
+			      sizeof(event));
 
 	return 0;
 }

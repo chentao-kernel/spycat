@@ -2,7 +2,7 @@
 #ifndef __OFFCPUTIME_H
 #define __OFFCPUTIME_H
 
-#define TASK_COMM_LEN		16
+#define TASK_COMM_LEN 16
 
 struct pid_info {
 	__u32 pid;

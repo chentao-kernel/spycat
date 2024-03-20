@@ -86,8 +86,7 @@ fmt-check:
 
 fmt-fix:
 	@echo "Fixing C and eBPF files and headers formatting..."
-	$(CLANG_FMT) -i --verbose -style="{BasedOnStyle: LLVM, IndentWidth: 8, UseTab: Always, TabWidth: 8, \
-		BreakBeforeBraces: Custom, BraceWrapping: { AfterFunction: true }}" $(C_FILES_TO_BE_CHECKED)
+	$(CLANG_FMT) -i --verbose $(C_FILES_TO_BE_CHECKED)
 
 # lint-check
 #
