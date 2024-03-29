@@ -36,7 +36,7 @@ type TaskCounter struct {
 	delta  uint64
 }
 
-type OnCpuUserArgs struct {
+type OnCpuArgs struct {
 	cpu        int
 	sampleRate int
 }

@@ -67,7 +67,7 @@ type OffCpuEvent struct {
 	Ts            uint64
 }
 
-type UserArgs struct {
+type OffCpuArgs struct {
 	Pid           uint32
 	Tgid          uint32
 	Min_offcpu_ms uint32
@@ -83,7 +83,7 @@ type OffcpuSession struct {
 	Module     *bpf.Module
 	SymSession *symtab.SymSession
 	mapStacks  *bpf.BPFMap
-	Args       UserArgs
+	Args       OffCpuArgs
 }
 
 func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -95,7 +95,7 @@ func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEve
 	return &OffcpuSession{
 		Session:    core.NewSession(name, &core.SessionConfig{}, buf),
 		SymSession: symSession,
-		Args: UserArgs{
+		Args: OffCpuArgs{
 			Pid:           math.MaxUint32,
 			Tgid:          uint32(cfg.Pid),
 			Min_offcpu_ms: uint32(cfg.MinOffcpuMs),
@@ -122,7 +122,7 @@ func (b *OffcpuSession) attachProgs() error {
 
 func (b *OffcpuSession) initArgsMap() error {
 	var id uint32 = 0
-	args := &UserArgs{
+	args := &OffCpuArgs{
 		Pid:           b.Args.Pid,
 		Tgid:          b.Args.Tgid,
 		Min_offcpu_ms: b.Args.Min_offcpu_ms,
