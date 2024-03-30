@@ -98,6 +98,7 @@ func (c *CiliumReceiver) consumeEvents() {
 
 func (c *CiliumReceiver) sendToConsumers(e *model.SpyEvent) error {
 	// Class.Name no used
+	// GetDetectors from OwnedEvents
 	detectors := c.detectorManager.GetDetectors(e.Class.Event)
 	if len(detectors) == 0 {
 		return nil

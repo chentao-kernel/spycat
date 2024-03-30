@@ -44,12 +44,13 @@ generate:
 	go generate $(EBPF_SRC)/uprobe/uprobe.go
 
 libbpf:
-	make -C $(LIBBPF_SRC) libbpf
+	#make -C $(LIBBPF_SRC) libbpf
 	make -C $(LIBBCC_SRC)
 
 ebpf.o: libbpf
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.c -o $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.c -o $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.o
+	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.c -o $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.o
 
 all: generate ebpf.o
 	@echo "go build $(TARGET)"

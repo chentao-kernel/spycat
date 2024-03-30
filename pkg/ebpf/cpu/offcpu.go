@@ -258,7 +258,7 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 		log.Loger.Error("parse event: %s", err)
 	}
 	//util.PrintStructFields(event)
-	spyEvent.Name = "offcpu"
+	spyEvent.Name = model.OffCpu
 	spyEvent.TimeStamp = uint64(time.Now().Unix())
 	spyEvent.Class.Name = cpudetector.DetectorCpuType
 	spyEvent.Class.Event = model.OffCpu

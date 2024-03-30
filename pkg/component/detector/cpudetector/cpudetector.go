@@ -185,7 +185,6 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 	var dataBlock *model.DataBlock
 	var err error
-
 	switch e.Name {
 	case model.OffCpu:
 		dataBlock, err = c.offcpuHandler(e)
@@ -203,6 +202,8 @@ func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 		})
 	case model.IrqOff:
 		dataBlock, err = c.irqoffHandler(e)
+	case model.FutexSnoop:
+		dataBlock, err = c.futexsnoopHandler(e)
 	default:
 		return nil
 	}
@@ -245,6 +246,34 @@ func (c *CpuDetector) ConsumeCommEvent(e *model.SpyEvent) error {
 
 func (c *CpuDetector) irqoffHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	return nil, nil
+}
+
+func (c *CpuDetector) formatFutexSnoopLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
+	labels := model.NewAttributeMap()
+	for i := 0; i < int(e.ParamsCnt); i++ {
+		userAttributes := e.UserAttributes[i]
+		switch {
+		case userAttributes.GetKey() == "user_cnt":
+			labels.AddIntValue(model.UserCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "max_user_cnt":
+			labels.AddIntValue(model.MaxUserCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "lock_addr":
+			labels.AddIntValue(model.LockAddr, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "min_dur":
+			labels.AddIntValue(model.MinDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "max_dur":
+			labels.AddIntValue(model.MaxDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "delta_dur":
+			labels.AddIntValue(model.DeltaDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "avg_dur":
+			labels.AddIntValue(model.AvgDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "lock_cnt":
+			labels.AddIntValue(model.LockCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "stack":
+			labels.AddStringValue(model.Stack, string(userAttributes.GetValue()))
+		}
+	}
+	return labels, nil
 }
 
 func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
@@ -293,6 +322,13 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 	return labels, nil
 }
 
+func (c *CpuDetector) futexsnoopHandler(e *model.SpyEvent) (*model.DataBlock, error) {
+	labels, _ := c.formatFutexSnoopLabels(e)
+	val := e.GetUintUserAttribute("max_user_cnt")
+	metric := model.NewIntMetric(model.FutexMaxUerCountName, int64(val))
+	return model.NewDataBlock(model.FutexSnoop, labels, e.TimeStamp, metric), nil
+}
+
 func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	labels, _ := c.formatOffcpuLabels(e)
 	//util.PrintStructFields(*ev)
@@ -331,9 +367,9 @@ func (c *CpuDetector) ConsumeEvent(e *model.SpyEvent) error {
 	return nil
 }
 
-// hard code
+// Notice: hard code, new tool added update this function
 func (c *CpuDetector) OwnedEvents() []string {
-	return []string{model.OffCpu, model.IrqOff, model.OnCpu}
+	return []string{model.OffCpu, model.IrqOff, model.OnCpu, model.FutexSnoop}
 }
 
 func (c *CpuDetector) PutEventToSegments(pid uint32, tid uint32, threadName string, event model.TimedEvent) {
