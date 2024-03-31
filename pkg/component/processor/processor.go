@@ -74,14 +74,14 @@ func (d *DefaultAggregator) Dump() []*model.DataBlock {
 	return ret
 }
 
-func NewDefaultProcessor(cfg any, consumer consumer.Consumer) Processor {
+func NewDefaultProcessor(cfg any, con consumer.Consumer) Processor {
 	config, _ := cfg.(*Config)
 	process := &DefaultProcessor{
 		config:     config,
-		consumer:   consumer,
+		consumer:   con,
 		stopCh:     make(chan struct{}),
 		aggregator: NewDefaultAggregator(toAggregatedConfig(config.AggregateKindMap)),
-		//ticker:     time.NewTicker(time.Duration(config.TickerInterval) * time.Second),
+		// ticker:     time.NewTicker(time.Duration(config.TickerInterval) * time.Second),
 		ticker: time.NewTicker(time.Duration(10) * time.Second),
 	}
 

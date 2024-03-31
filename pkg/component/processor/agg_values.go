@@ -306,7 +306,7 @@ func (v *histogramValue) calculate(value int64) int64 {
 	v.count++
 	for i := 0; i < len(v.explicitBoundaries); i++ {
 		if value <= v.explicitBoundaries[i] {
-			v.bucketCounts[i] += 1
+			v.bucketCounts[i]++
 		}
 	}
 	return int64(v.count)

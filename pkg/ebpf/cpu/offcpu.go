@@ -121,7 +121,7 @@ func (b *OffcpuSession) attachProgs() error {
 }
 
 func (b *OffcpuSession) initArgsMap() error {
-	var id uint32 = 0
+	var id uint32
 	args := &OffCpuArgs{
 		Pid:           b.Args.Pid,
 		Tgid:          b.Args.Tgid,
@@ -172,8 +172,6 @@ loop:
 }
 
 func (b *OffcpuSession) Start() error {
-	//var module *bpf.Module
-	//var prog *bpf.BPFProg
 	fmt.Println("offcpu start trace")
 	err := unix.Setrlimit(unix.RLIMIT_MEMLOCK, &unix.Rlimit{
 		Cur: unix.RLIM_INFINITY,
@@ -257,14 +255,14 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	if err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &event); err != nil {
 		log.Loger.Error("parse event: %s", err)
 	}
-	//util.PrintStructFields(event)
+	// util.PrintStructFields(event)
 	spyEvent.Name = model.OffCpu
 	spyEvent.TimeStamp = uint64(time.Now().Unix())
 	spyEvent.Class.Name = cpudetector.DetectorCpuType
 	spyEvent.Class.Event = model.OffCpu
 	spyEvent.Task.Pid = event.Target.Tgid
 	spyEvent.Task.Tid = event.Target.Pid
-	//spyEvent.Task.Comm = strings.ReplaceAll(string(event.Target.Comm[:]), "\u0000", "")
+	// spyEvent.Task.Comm = strings.ReplaceAll(string(event.Target.Comm[:]), "\u0000", "")
 	spyEvent.Task.Comm = string(event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithUint32("w_pid", event.Waker.Pid)
 	spyEvent.SetUserAttributeWithUint32("w_tgid", event.Waker.Tgid)

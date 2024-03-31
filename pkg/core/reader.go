@@ -1,7 +1,7 @@
 package core
 
 import (
-	log "github.com/chentao-kernel/spycat/pkg/log"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/ringbuf"
 	"golang.org/x/time/rate"
@@ -28,22 +28,22 @@ type SessionReader struct {
 	DataChan   chan any
 }
 
-func NewSessionReader(bufSize int, perf *perf.Reader, ringBuf *ringbuf.Reader) *SessionReader {
+func NewSessionReader(bufSize int, perfReader *perf.Reader, ringBuf *ringbuf.Reader) *SessionReader {
 	var reader ReaderType
 
-	if perf != nil {
+	if perfReader != nil {
 		reader = PerfReader
 	} else if ringBuf != nil {
 		reader = RingBufReader
 	} else {
-		log.Loger.Error("perf:{}, ringbuf:P{}", perf, ringBuf)
+		log.Loger.Error("perf:{}, ringbuf:P{}", perfReader, ringBuf)
 	}
 
 	return &SessionReader{
 		ReaderType: reader,
 		Limiter:    rate.NewLimiter(2, 1),
 		BpfReader: BpfReader{
-			PerfReader:    perf,
+			PerfReader:    perfReader,
 			RingBufReader: ringBuf,
 		},
 		BufSize:  bufSize,

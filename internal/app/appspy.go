@@ -20,7 +20,7 @@ type AppSpy struct {
 	detecorManager    *detector.DetectorManager
 }
 
-func NewAppSpy() (error, *AppSpy) {
+func NewAppSpy() (*AppSpy, error) {
 	app := &AppSpy{
 		componentsFactory: NewConpnentsFactory(),
 	}
@@ -28,9 +28,9 @@ func NewAppSpy() (error, *AppSpy) {
 	app.registerFactory()
 
 	if err := app.createPipeline(); err != nil {
-		return fmt.Errorf("Create piplined failed:%v", err), nil
+		return nil, fmt.Errorf("Create piplined failed:%v", err)
 	}
-	return nil, app
+	return app, nil
 }
 
 func (a *AppSpy) registerFactory() {
@@ -75,7 +75,6 @@ func (a *AppSpy) Stop() error {
 }
 
 func (a *AppSpy) createPipeline() error {
-
 	// 1. create Exporter
 	exporter := spyexporter.NewSpyExporter(spyexporter.NewConfig())
 

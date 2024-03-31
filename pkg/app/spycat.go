@@ -11,7 +11,7 @@ import (
 )
 
 func Start() {
-	err, spy := appspy.NewAppSpy()
+	spy, err := appspy.NewAppSpy()
 	if err != nil {
 		fmt.Printf("New App Spy failed:%v\n", err)
 	}
@@ -32,16 +32,18 @@ func Start() {
 	}
 
 	for _, spyer := range bpfSpyers {
-		if spyer.Name() != model.OnCpu {
+		// just for lint-check
+		tmp := spyer
+		if tmp.Name() != model.OnCpu {
 			continue
 		}
 		go func() {
-			err := spyer.Start()
+			err := tmp.Start()
 			if err != nil {
-				log.Loger.Error("bpfspy:{%s}, start failed:%v\n", spyer.Name(), err)
+				log.Loger.Error("bpfspy:{%s}, start failed:%v\n", tmp.Name(), err)
 			}
 		}()
-		fmt.Printf("trace event:%s start\n", spyer.Name())
+		fmt.Printf("trace event:%s start\n", tmp.Name())
 	}
 	fmt.Println("Bpf Spy Start All")
 	log.Loger.Info("Bpf Spy Start All.")

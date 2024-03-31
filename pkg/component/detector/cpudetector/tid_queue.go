@@ -55,7 +55,7 @@ func (ca *CpuDetector) TidDelete(interval time.Duration, expiredDuration time.Du
 					if elem.exitTime.Add(expiredDuration).After(now) {
 						break
 					}
-					//Delete expired threads (current_time >= thread_exit_time + interval_time).
+					// Delete expired threads (current_time >= thread_exit_time + interval_time).
 					func() {
 						ca.lock.Lock()
 						defer ca.lock.Unlock()
@@ -63,7 +63,7 @@ func (ca *CpuDetector) TidDelete(interval time.Duration, expiredDuration time.Du
 						if tidEventsMap == nil {
 							ca.tidExpiredQueue.Pop()
 						} else {
-							//fmt.Printf("Go Test: Delete expired thread... pid=%d, tid=%d\n", elem.pid, elem.tid)
+							// fmt.Printf("Go Test: Delete expired thread... pid=%d, tid=%d\n", elem.pid, elem.tid)
 							delete(tidEventsMap, elem.tid)
 							ca.tidExpiredQueue.Pop()
 						}

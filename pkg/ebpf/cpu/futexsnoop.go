@@ -103,7 +103,7 @@ func (b *FutexSnoopSession) attachProgs() error {
 }
 
 func (b *FutexSnoopSession) initArgsMap() error {
-	var id uint32 = 0
+	var id uint32
 	args := &FutexSnoopArgs{
 		Pid:              b.Args.Pid,
 		Tid:              b.Args.Tid,
@@ -260,7 +260,7 @@ func (b *FutexSnoopSession) HandleEvent(data []byte) {
 		spyEvent.SetUserAttributeWithUint64("avg_dur", 0)
 		spyEvent.SetUserAttributeWithUint64("lock_cnt", 0)
 		spyEvent.SetUserAttributeWithByteBuf("stack", []byte(""))
-		//fmt.Printf("pid:%d,tid:%d,comm:%s,max_user_cnt:%d\n", spyEvent.Task.Pid,
+		// fmt.Printf("pid:%d,tid:%d,comm:%s,max_user_cnt:%d\n", spyEvent.Task.Pid,
 		//	spyEvent.Task.Tid, spyEvent.Task.Comm, lock.MaxUserCnt)
 	}
 

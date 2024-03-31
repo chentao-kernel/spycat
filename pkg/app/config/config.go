@@ -44,13 +44,13 @@ type ONCPU struct {
 
 	// Remote upstream configuration
 	Server string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
-	//AuthToken              string        `def:"" desc:"authorization token used to upload profiling data" mapstructure:"auth-token"`
+	// AuthToken              string        `def:"" desc:"authorization token used to upload profiling data" mapstructure:"auth-token"`
 	UploadThreads int           `def:"4" desc:"number of upload threads" mapstructure:"upload-threads"`
 	UploadTimeout time.Duration `def:"10s" desc:"profile upload timeout" mapstructure:"upload-timeout"`
 	UploadRate    time.Duration `def:"10s" desc:"profile upload rate " mapstructure:"upload-rate"`
 
 	Cpu string `def:"-1" desc:"Number of cpu you want to profile, like:1,2,4; -1 to profile the whole system" mapstructure:"cpu"`
-	//DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
+	// DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
 	SymbolCacheSize int `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 }
 

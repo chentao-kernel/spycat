@@ -61,8 +61,6 @@ type FileOutputer struct {
 func (f *FileOutputer) output(data *model.DataBlock) error {
 	fmt.Println("", data)
 	if f.file == nil {
-		//comm := data.Labels.GetStringValue(model.Comm)
-		//pid := data.Labels.GetIntValue(model.Pid)
 		// filename is event name, like: ebpf_offcpu
 		fileName := "ebpf_" + data.Name
 		filePath := filepath.Join(f.config.BaseFilePath, fileName)

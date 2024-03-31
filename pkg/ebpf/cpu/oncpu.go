@@ -19,9 +19,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//#cgo CFLAGS: -I./oncpu/
-//#include <linux/types.h>
-//#include "oncpu.h"
+// #cgo CFLAGS: -I./oncpu/
+// #include <linux/types.h>
+// #include "oncpu.h"
 import "C"
 
 type OnCpuEvent struct {
@@ -60,7 +60,6 @@ type OncpuSession struct {
 }
 
 func NewOnCpuBpfSession(name string, cfg *config.ONCPU, buf chan *model.SpyEvent) core.BpfSpyer {
-
 	symSession, err := symtab.NewSymSession(cfg.SymbolCacheSize)
 	if err != nil {
 		log.Loger.Error("sym session failed")
@@ -114,8 +113,11 @@ func (b *OncpuSession) PollData() {
 	}
 }
 
+// try lookup_and_delete_batch
+// https://juejin.cn/post/7130143987377111054
+// https://github.com/mgechev/revive/blob/master/README.md
+// revive:disable:function-result-limit
 func (b *OncpuSession) getCountsMapValues() (keys [][]byte, values [][]byte, batch bool, err error) {
-	// try lookup_and_delete_batch
 	var (
 		mapSize = C.PROFILE_MAPS_SIZE
 		keySize = int(unsafe.Sizeof(C.struct_profile_key_t{}))
@@ -179,9 +181,9 @@ func (b *OncpuSession) clearStacksMap(knownKeys map[uint32]bool) error {
 		}
 		for _, key := range keys {
 			if err := m.DeleteKey(unsafe.Pointer(&key[0])); err != nil {
-				errs += 1
+				errs++
 			} else {
-				cnt += 1
+				cnt++
 			}
 		}
 		return nil
@@ -189,15 +191,15 @@ func (b *OncpuSession) clearStacksMap(knownKeys map[uint32]bool) error {
 	for stackId := range knownKeys {
 		k := stackId
 		if err := m.DeleteKey(unsafe.Pointer(&k)); err != nil {
-			errs += 1
+			errs++
 		} else {
-			cnt += 1
+			cnt++
 		}
 	}
 	return nil
 }
 
-func (s *OncpuSession) Start() error {
+func (b *OncpuSession) Start() error {
 	var err error
 
 	fmt.Println("oncpu start trace")
@@ -208,42 +210,42 @@ func (s *OncpuSession) Start() error {
 		return err
 	}
 
-	s.modMutex.Lock()
-	defer s.modMutex.Unlock()
+	b.modMutex.Lock()
+	defer b.modMutex.Unlock()
 
 	args := bpf.NewModuleArgs{BPFObjBuff: onCpuBpf}
-	if s.Module, err = bpf.NewModuleFromBufferArgs(args); err != nil {
+	if b.Module, err = bpf.NewModuleFromBufferArgs(args); err != nil {
 		return err
 	}
 
-	if err = s.Module.BPFLoadObject(); err != nil {
+	if err = b.Module.BPFLoadObject(); err != nil {
 		return err
 	}
 
-	if s.prog, err = s.Module.GetProgram("do_perf_event"); err != nil {
+	if b.prog, err = b.Module.GetProgram("do_perf_event"); err != nil {
 		return err
 	}
 
-	s.mapCounts, err = s.Module.GetMap("counts")
+	b.mapCounts, err = b.Module.GetMap("counts")
 	if err != nil {
 		return fmt.Errorf("get counts map failed:%v", err)
 	}
 
-	s.mapStacks, err = s.Module.GetMap("stacks")
+	b.mapStacks, err = b.Module.GetMap("stacks")
 	if err != nil {
 		return fmt.Errorf("get stacks map failed:%v", err)
 	}
 
-	if err = s.attachPerfEvent(); err != nil {
+	if err = b.attachPerfEvent(); err != nil {
 		return err
 	}
 
-	s.PollData()
+	b.PollData()
 	return nil
 }
 
 func (b *OncpuSession) Reset() error {
-	b.SymSession.RoundNumber += 1
+	b.SymSession.RoundNumber++
 
 	keys, values, batch, err := b.getCountsMapValues()
 	if err != nil {
@@ -303,10 +305,9 @@ func (b *OncpuSession) Reset() error {
 	if err = b.clearCountsMap(keys, batch); err != nil {
 		return err
 	}
-	if err = b.clearStacksMap(knownStacks); err != nil {
-		return err
-	}
-	return nil
+	err = b.clearStacksMap(knownStacks)
+
+	return err
 }
 
 func (b *OncpuSession) Stop() error {

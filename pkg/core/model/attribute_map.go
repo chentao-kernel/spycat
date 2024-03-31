@@ -168,8 +168,8 @@ func (a *AttributeMap) ResetValues() {
 }
 
 func (a *AttributeMap) String() string {
-	json, _ := json.Marshal(a.ToStringMap())
-	return string(json)
+	jn, _ := json.Marshal(a.ToStringMap())
+	return string(jn)
 }
 
 func (a *AttributeMap) Clone() *AttributeMap {
