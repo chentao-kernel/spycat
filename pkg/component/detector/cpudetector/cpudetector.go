@@ -138,6 +138,7 @@ func (c *CpuDetector) UploadWithTicker() {
 		select {
 		case endTimeTruncated := <-uploadTicker.C:
 			// 获取栈信息并上传
+			// get stack info and upload
 			c.UploadTries(endTimeTruncated)
 		case <-c.stopChan:
 			c.Stop()
@@ -172,6 +173,7 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 						})
 					}
 					// 新建一个trie树，删除掉历史栈信息
+					// new a trie to delete the old stack info
 					c.tries[name][i] = trie.New()
 				}
 			}

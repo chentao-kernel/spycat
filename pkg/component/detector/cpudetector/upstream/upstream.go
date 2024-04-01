@@ -15,7 +15,7 @@ type UploadJob struct {
 	SampleRate      uint32
 	Units           metadata.Units
 	AggregationType metadata.AggregationType
-	Trie            *trie.Trie // 实际栈信息放置的地方
+	Trie            *trie.Trie // 实际栈信息放置的地方 store the stack info
 }
 
 type Upstream interface {
