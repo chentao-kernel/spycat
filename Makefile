@@ -44,7 +44,7 @@ generate:
 	go generate $(EBPF_SRC)/uprobe/uprobe.go
 
 libbpf:
-	#make -C $(LIBBPF_SRC) libbpf
+	make -C $(LIBBPF_SRC) libbpf
 	make -C $(LIBBCC_SRC)
 
 ebpf.o: libbpf
@@ -100,5 +100,5 @@ lint-check:
 
 clean:
 	find . -name "*.o" | xargs rm -f
-	#make -C $(LIBBPF_SRC) clean
-	#make -C $(LIBBCC_SRC) clean
+	make -C $(LIBBPF_SRC) clean
+	make -C $(LIBBCC_SRC) clean
