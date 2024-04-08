@@ -106,11 +106,11 @@ func (s *Segment) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			for i, _ := range e {
+			for i := range e {
 				s.CpuEvents = append(s.CpuEvents, &e[i])
 			}
 		default:
-			//return errors.New("unrecognized key")
+			// return errors.New("unrecognized key")
 		}
 	}
 	return nil

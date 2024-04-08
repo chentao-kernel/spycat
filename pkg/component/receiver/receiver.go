@@ -52,7 +52,6 @@ func (c *CiliumReceiver) Start() error {
 	log.Loger.Info("Cilium Receiver Start!")
 
 	go c.consumeEvents()
-	//go c.receiveEvents()
 
 	return nil
 }
@@ -98,13 +97,16 @@ func (c *CiliumReceiver) consumeEvents() {
 
 func (c *CiliumReceiver) sendToConsumers(e *model.SpyEvent) error {
 	// Class.Name no used
+	// GetDetectors from OwnedEvents
 	detectors := c.detectorManager.GetDetectors(e.Class.Event)
 	if len(detectors) == 0 {
 		return nil
 	}
-	for _, detector := range detectors {
-		if err := detector.ConsumeEvent(e); err != nil {
+	for _, dector := range detectors {
+		err := dector.ConsumeEvent(e)
+		if err != nil {
 			log.Loger.Warn("failed to send event:%v", err)
+			return err
 		}
 	}
 	return nil

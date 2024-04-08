@@ -25,15 +25,14 @@ const (
 )
 
 var nanoToSeconds uint64 = 1e9
-var enableProfile bool = true
+var enableProfile = true
 
 type CpuDetector struct {
-	cfg             *Config
-	cpuPidEvents    map[uint32]map[uint32]*model.TimeSegments
-	eventChan       chan *model.SpyEvent
-	stopChan        chan struct{}
-	consumers       []consumer.Consumer
-	tidExpiredQueue *tidDeleteQueue
+	cfg          *Config
+	cpuPidEvents map[uint32]map[uint32]*model.TimeSegments
+	eventChan    chan *model.SpyEvent
+	stopChan     chan struct{}
+	consumers    []consumer.Consumer
 
 	lock sync.RWMutex
 
@@ -48,18 +47,17 @@ type CpuDetector struct {
 }
 
 func NewCpuDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
-	config, _ := cfg.(*Config)
+	conf, _ := cfg.(*Config)
 
 	cd := &CpuDetector{
-		cfg: config,
+		cfg: conf,
 		// noused now
-		cpuPidEvents:    make(map[uint32]map[uint32]*model.TimeSegments, 10000),
-		eventChan:       make(chan *model.SpyEvent, config.EventChanSize),
-		consumers:       consumers,
-		tidExpiredQueue: newTidDeleteQueue(),
-		stopChan:        make(chan struct{}),
-		previousTries:   make(map[string][]*trie.Trie),
-		tries:           make(map[string][]*trie.Trie),
+		cpuPidEvents:  make(map[uint32]map[uint32]*model.TimeSegments, 10000),
+		eventChan:     make(chan *model.SpyEvent, conf.EventChanSize),
+		consumers:     consumers,
+		stopChan:      make(chan struct{}),
+		previousTries: make(map[string][]*trie.Trie),
+		tries:         make(map[string][]*trie.Trie),
 	}
 	// only oncpu use
 	cd.initializeTries(model.OnCpu)
@@ -83,14 +81,14 @@ func (c *CpuDetector) initializeTries(appName string) {
 }
 
 func (c *CpuDetector) Init(cfg any) error {
-	config, ok := cfg.(*config.ONCPU)
+	conf, ok := cfg.(*config.ONCPU)
 	if ok {
 		// init upstream parameter
 		rc := remote.RemoteConfig{
-			AuthToken:              "", //cfg.AuthToken,
-			UpstreamThreads:        config.UploadThreads,
-			UpstreamAddress:        config.Server,
-			UpstreamRequestTimeout: config.UploadTimeout, // add timeout
+			AuthToken:              "", // cfg.AuthToken,
+			UpstreamThreads:        conf.UploadThreads,
+			UpstreamAddress:        conf.Server,
+			UpstreamRequestTimeout: conf.UploadTimeout, // add timeout
 		}
 		up, err := remote.New(rc)
 		if err != nil {
@@ -106,9 +104,8 @@ func (c *CpuDetector) Init(cfg any) error {
 }
 
 func (c *CpuDetector) Start() error {
-	//util.PrintStack()
+	// util.PrintStack() for debug
 	go c.ConsumeChanEvents()
-	//go c.TidRemove(30*time.Second, 10*time.Second)
 
 	return nil
 }
@@ -139,6 +136,7 @@ func (c *CpuDetector) UploadWithTicker() {
 		select {
 		case endTimeTruncated := <-uploadTicker.C:
 			// 获取栈信息并上传
+			// get stack info and upload
 			c.UploadTries(endTimeTruncated)
 		case <-c.stopChan:
 			c.Stop()
@@ -173,6 +171,7 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 						})
 					}
 					// 新建一个trie树，删除掉历史栈信息
+					// new a trie to delete the old stack info
 					c.tries[name][i] = trie.New()
 				}
 			}
@@ -185,7 +184,6 @@ func (c *CpuDetector) UploadTries(endTimeTruncated time.Time) {
 func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 	var dataBlock *model.DataBlock
 	var err error
-
 	switch e.Name {
 	case model.OffCpu:
 		dataBlock, err = c.offcpuHandler(e)
@@ -195,14 +193,16 @@ func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 				if _, ok := c.tries[appName]; !ok {
 					c.initializeTries(appName)
 				}
-				// 将栈信息插入到trie树中
+				// insert the stackinfo into trie tree
 				c.tries[appName][0].Insert(stack, v, true)
-				//fmt.Printf("tao name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
+				// fmt.Printf("tao name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
 			}
 			return nil
 		})
 	case model.IrqOff:
 		dataBlock, err = c.irqoffHandler(e)
+	case model.FutexSnoop:
+		dataBlock, err = c.futexsnoopHandler(e)
 	default:
 		return nil
 	}
@@ -245,6 +245,34 @@ func (c *CpuDetector) ConsumeCommEvent(e *model.SpyEvent) error {
 
 func (c *CpuDetector) irqoffHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	return nil, nil
+}
+
+func (c *CpuDetector) formatFutexSnoopLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
+	labels := model.NewAttributeMap()
+	for i := 0; i < int(e.ParamsCnt); i++ {
+		userAttributes := e.UserAttributes[i]
+		switch {
+		case userAttributes.GetKey() == "user_cnt":
+			labels.AddIntValue(model.UserCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "max_user_cnt":
+			labels.AddIntValue(model.MaxUserCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "lock_addr":
+			labels.AddIntValue(model.LockAddr, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "min_dur":
+			labels.AddIntValue(model.MinDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "max_dur":
+			labels.AddIntValue(model.MaxDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "delta_dur":
+			labels.AddIntValue(model.DeltaDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "avg_dur":
+			labels.AddIntValue(model.AvgDur, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "lock_cnt":
+			labels.AddIntValue(model.LockCnt, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "stack":
+			labels.AddStringValue(model.Stack, string(userAttributes.GetValue()))
+		}
+	}
+	return labels, nil
 }
 
 func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
@@ -293,17 +321,23 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 	return labels, nil
 }
 
+func (c *CpuDetector) futexsnoopHandler(e *model.SpyEvent) (*model.DataBlock, error) {
+	labels, _ := c.formatFutexSnoopLabels(e)
+	val := e.GetUintUserAttribute("max_user_cnt")
+	metric := model.NewIntMetric(model.FutexMaxUerCountName, int64(val))
+	return model.NewDataBlock(model.FutexSnoop, labels, e.TimeStamp, metric), nil
+}
+
 func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	labels, _ := c.formatOffcpuLabels(e)
-	//util.PrintStructFields(*ev)
-	//c.PutEventToSegments(e.GetPid(), e.GetTid(), e.GetComm(), ev)
+	// util.PrintStructFields(*ev)
+	// c.PutEventToSegments(e.GetPid(), e.GetTid(), e.GetComm(), ev)
 	val := e.GetUintUserAttribute("t_offcpu_oncpu")
 	metric := model.NewIntMetric(model.OffCpuMetricName, int64(val))
 	return model.NewDataBlock(model.OffCpu, labels, e.TimeStamp, metric), nil
 }
 
 func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, uint64) error) (*model.DataBlock, error) {
-
 	var count uint64
 	var stack []byte
 
@@ -321,7 +355,7 @@ func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, ui
 		}
 	}
 	cb(e.Name, stack, count)
-	//fmt.Printf("pid:%d, comm:%s, count:%d, stack:%s", pid, comm, count, stack)
+	// fmt.Printf("pid:%d, comm:%s, count:%d, stack:%s", pid, comm, count, stack)
 	return nil, nil
 }
 
@@ -331,158 +365,7 @@ func (c *CpuDetector) ConsumeEvent(e *model.SpyEvent) error {
 	return nil
 }
 
-// hard code
+// Notice: hard code, new tool added update this function
 func (c *CpuDetector) OwnedEvents() []string {
-	return []string{model.OffCpu, model.IrqOff, model.OnCpu}
-}
-
-func (c *CpuDetector) PutEventToSegments(pid uint32, tid uint32, threadName string, event model.TimedEvent) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if !enableProfile {
-		return
-	}
-	tidCpuEvents, exist := c.cpuPidEvents[pid]
-	if !exist {
-		tidCpuEvents = make(map[uint32]*model.TimeSegments)
-		c.cpuPidEvents[pid] = tidCpuEvents
-	}
-	timeSegments, exist := tidCpuEvents[tid]
-	// 配置的最大值
-	maxSegmentSize := c.cfg.SegmentSize
-	if exist {
-		endOffset := int(event.EndTimestamp()/nanoToSeconds - timeSegments.BaseTime)
-		if endOffset < 0 {
-			log.Loger.Debug("endoffset is negative, endtimestamp=%d, basetime=%d", event.EndTimestamp(), timeSegments.BaseTime)
-			return
-		}
-		startOffset := int(event.StartTimestamp()/nanoToSeconds - timeSegments.BaseTime)
-		if startOffset < 0 {
-			startOffset = 0
-		}
-		if startOffset >= maxSegmentSize || endOffset > maxSegmentSize {
-			if startOffset*2 >= 3*maxSegmentSize {
-				log.Loger.Debug("pid=%d,tid=%d,com=%s, reset basetime from %d to %d, startoffset:%d, maxsegmentSize:%d",
-					pid, tid, threadName, timeSegments.BaseTime, event.StartTimestamp()/nanoToSeconds, startOffset, maxSegmentSize)
-				// clear all elements
-				timeSegments.Segments.Clear()
-				// basetime 等于开始时间
-				timeSegments.BaseTime = event.StartTimestamp() / nanoToSeconds
-				endOffset = endOffset - startOffset
-				startOffset = 0
-				for i := 0; i < maxSegmentSize; i++ {
-					segment := model.NewSegment((timeSegments.BaseTime+uint64(i))*nanoToSeconds,
-						// basetime 间隔1秒
-						(timeSegments.BaseTime+uint64(i+1))*nanoToSeconds)
-					timeSegments.Segments.UpdateByIndex(i, segment)
-				}
-			} else {
-				// Clear half of the elements
-				clearSize := maxSegmentSize / 2
-				log.Loger.Debug("pid=%d,tid=%d,com=%s, reset basetime from %d to %d, startoffset:%d, maxsegmentSize:%d",
-					pid, tid, threadName, timeSegments.BaseTime, event.StartTimestamp()/nanoToSeconds, startOffset, maxSegmentSize)
-
-				timeSegments.BaseTime = timeSegments.BaseTime + uint64(clearSize)
-				startOffset -= clearSize
-				if startOffset < 0 {
-					startOffset = 0
-				}
-				endOffset -= clearSize
-				for i := 0; i < clearSize; i++ {
-					movedIndex := i + clearSize
-					val := timeSegments.Segments.GetByIndex(movedIndex)
-					timeSegments.Segments.UpdateByIndex(i, val)
-					segmentTmp := model.NewSegment((timeSegments.BaseTime+uint64(movedIndex))*nanoToSeconds,
-						(timeSegments.BaseTime+uint64(movedIndex+1))*nanoToSeconds)
-					timeSegments.Segments.UpdateByIndex(movedIndex, segmentTmp)
-				}
-			}
-		}
-		// Update the thread name immediately
-		// startOffset和endOffset差的不大
-		timeSegments.UpdateThreadName(threadName)
-		for i := startOffset; i <= endOffset && i < maxSegmentSize; i++ {
-			val := timeSegments.Segments.GetByIndex(i)
-			segment := val.(*model.Segment)
-			segment.PutTimedEvent(event)
-			segment.IsSend = 0
-			timeSegments.Segments.UpdateByIndex(i, segment)
-		}
-
-	} else {
-		/*
-			TimeSegments
-				Segments-->CircleQueue
-							data[0] 			--> Segment
-							data[1] 			--> Segment
-							... 				...
-							data[maxSegmentSize] --> Segment
-		*/
-		newTimeSegments := &model.TimeSegments{
-			Pid:        pid,
-			Tid:        tid,
-			ThreadName: threadName,
-			// 初始化起始时间
-			BaseTime: event.StartTimestamp() / nanoToSeconds,
-			Segments: model.NewCircleQueue(maxSegmentSize),
-		}
-		for i := 0; i < maxSegmentSize; i++ {
-			segment := model.NewSegment((newTimeSegments.BaseTime+uint64(i))*nanoToSeconds,
-				(newTimeSegments.BaseTime+uint64(i+1))*nanoToSeconds)
-			// 将segment放到Segments中
-			newTimeSegments.Segments.UpdateByIndex(i, segment)
-		}
-
-		endOffset := int(event.EndTimestamp()/nanoToSeconds - newTimeSegments.BaseTime)
-
-		for i := 0; i <= endOffset && i < maxSegmentSize; i++ {
-			val := newTimeSegments.Segments.GetByIndex(i)
-			segment := val.(*model.Segment)
-			segment.PutTimedEvent(event)
-			segment.IsSend = 0
-		}
-		//  一个tid对应一个ringbuffer
-		tidCpuEvents[tid] = newTimeSegments
-	}
-}
-
-// todo: 增加添加tidExpiredQueue的逻辑
-func (c *CpuDetector) TidRemove(interval time.Duration, expiredDuration time.Duration) {
-	for {
-		select {
-		case <-c.stopChan:
-			return
-		case <-time.After(interval):
-			now := time.Now()
-			func() {
-				c.tidExpiredQueue.queueMutex.Lock()
-				defer c.tidExpiredQueue.queueMutex.Unlock()
-				for {
-					// 取出队列中的所有元素, 如果过期了就删除掉
-					elem := c.tidExpiredQueue.GetFront()
-					if elem == nil {
-						break
-					}
-					if elem.exitTime.Add(expiredDuration).After(now) {
-						break
-					}
-					//Delete expired threads (current_time >= thread_exit_time + interval_time).
-					func() {
-						// 获取map的锁
-						c.lock.Lock()
-						defer c.lock.Unlock()
-						tidEventsMap := c.cpuPidEvents[elem.pid]
-						if tidEventsMap == nil {
-							c.tidExpiredQueue.Pop()
-						} else {
-							log.Loger.Debug("delete expired thread,pid=%d,tid=%d", elem.pid, elem.tid)
-							delete(tidEventsMap, elem.tid)
-							c.tidExpiredQueue.Pop()
-						}
-					}()
-				}
-			}()
-		}
-	}
-
+	return []string{model.OffCpu, model.IrqOff, model.OnCpu, model.FutexSnoop}
 }

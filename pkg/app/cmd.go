@@ -61,6 +61,7 @@ func SubCmdInit(cmd *Cmd) {
 	subcommands := []*cobra.Command{
 		newOffCpuSpyCmd(&cmd.cfg.OFFCPU),
 		newOnCpuSpyCmd(&cmd.cfg.ONCPU),
+		newFutexSnoopSpyCmd(&cmd.cfg.FUTEXSNOOP),
 		newVersionCmd(),
 	}
 
@@ -87,24 +88,24 @@ func SubCmdInit(cmd *Cmd) {
 	})
 }
 
-// 抽象接口给所有工具使用
+// common interface for all tools
 func RunSpy(cfg interface{}, cb func(interface{}, chan *model.SpyEvent) core.BpfSpyer) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-	err, spy := appspy.NewAppSpy()
+	spy, err := appspy.NewAppSpy()
 	if err != nil {
-		fmt.Printf("New App Spy failed:%v\n", err)
+		fmt.Printf("new app spy failed:%v\n", err)
 	}
 
 	err = spy.Init(cfg)
 	if err != nil {
-		return fmt.Errorf("spy init failed:%v\n", err)
+		return fmt.Errorf("spy init failed:%v", err)
 	}
 
 	err = spy.Start()
 	if err != nil {
-		fmt.Printf("Spy start failed:%v\n", err)
+		fmt.Printf("spy start failed:%v\n", err)
 		spy.Stop()
 	}
 
@@ -124,7 +125,29 @@ func RunSpy(cfg interface{}, cb func(interface{}, chan *model.SpyEvent) core.Bpf
 	return nil
 }
 
-// https://blog.csdn.net/xmcy001122/article/details/124616967 cobra库使用
+func newFutexSnoopSpyCmd(cfg *config.FUTEXSNOOP) *cobra.Command {
+	vpr := newViper()
+	connectCmd := &cobra.Command{
+		Use:   "futexsnoop [flags]",
+		Short: "eBPF snoop user futex",
+		Args:  cobra.NoArgs,
+
+		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
+			return RunSpy(cfg, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+				config, ok := cfg.(*config.FUTEXSNOOP)
+				if ok {
+					return cpu.NewFutexSnoopSession(model.FutexSnoop, config, buf)
+				}
+				return nil
+			})
+		}),
+	}
+
+	cli.PopulateFlagSet(cfg, connectCmd.Flags(), vpr)
+	return connectCmd
+}
+
+// https://blog.csdn.net/xmcy001122/article/details/124616967 cobra use
 func newOnCpuSpyCmd(cfg *config.ONCPU) *cobra.Command {
 	vpr := newViper()
 	connectCmd := &cobra.Command{

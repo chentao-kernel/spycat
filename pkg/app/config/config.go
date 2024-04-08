@@ -7,17 +7,33 @@ import (
 type Config struct {
 	Version bool `mapstructure:"version"`
 
-	ONCPU  ONCPU  `skip:"true" mapstructure:",squash"`
-	OFFCPU OFFCPU `skip:"true" mapstructure:",squash"`
+	ONCPU      ONCPU      `skip:"true" mapstructure:",squash"`
+	OFFCPU     OFFCPU     `skip:"true" mapstructure:",squash"`
+	FUTEXSNOOP FUTEXSNOOP `skip:"true" mapstructire:",squash"`
+}
+
+type FUTEXSNOOP struct {
+	LogLevel         string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	AppName          string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
+	Pid              int    `def:"0" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
+	Tid              int    `def:"0" desc:"tid to trace, -1 to trace all tids" mapstructure:"tid"`
+	MaxDurMs         uint   `def:"1000000" desc:"max time(ms) wait unlock" mapstructure:"max_dur_ms"`
+	MinDurMs         uint   `def:"1000" desc:"min time(ms) wait unlock" mapstructure:"min_dur_ms"`
+	SymbolCacheSize  int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
+	MaxLockHoldUsers uint   `def:"100" desc:"max users hold the same lock" mapstructure:"max-lock-hold-users"`
+	TargetLock       uint   `def:"0" desc:"target lock addr" mapstructure:"target-lock"`
+	Stack            bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
 }
 
 type OFFCPU struct {
+	LogLevel        string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
 	AppName         string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid             int    `def:"-1" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
 	MaxOffcpuMs     uint   `def:"100000000" desc:"max offcpu ms" mapstructure:"max_offcpu"`
 	MinOffcpuMs     uint   `def:"0" desc:"min offcpu ms" mapstructure:"min_offcpu"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
+	OnRqUs          uint   `def:"0" desc:"min onrq us" mapstructure:"onrq"`
 }
 
 type ONCPU struct {
@@ -28,13 +44,13 @@ type ONCPU struct {
 
 	// Remote upstream configuration
 	Server string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
-	//AuthToken              string        `def:"" desc:"authorization token used to upload profiling data" mapstructure:"auth-token"`
+	// AuthToken              string        `def:"" desc:"authorization token used to upload profiling data" mapstructure:"auth-token"`
 	UploadThreads int           `def:"4" desc:"number of upload threads" mapstructure:"upload-threads"`
 	UploadTimeout time.Duration `def:"10s" desc:"profile upload timeout" mapstructure:"upload-timeout"`
 	UploadRate    time.Duration `def:"10s" desc:"profile upload rate " mapstructure:"upload-rate"`
 
 	Cpu string `def:"-1" desc:"Number of cpu you want to profile, like:1,2,4; -1 to profile the whole system" mapstructure:"cpu"`
-	//DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
+	// DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
 	SymbolCacheSize int `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 }
 

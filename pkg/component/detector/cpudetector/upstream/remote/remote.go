@@ -82,6 +82,7 @@ func (r *Remote) Stop() {
 
 func (r *Remote) Upload(job *upstream.UploadJob) {
 	// 把数据放到chan中，由go handleJobs负责处理
+	// put the data in chan, and handled by go handlejobs
 	select {
 	case r.jobs <- job:
 	default:

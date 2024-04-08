@@ -3,7 +3,7 @@
 #refrence:https://www.kancloud.cn/woshigrey/docker/935037
 
 read -r -d '' USAGE << EOF || true
-usage: ./args.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
+usage: ./build.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
 	-b              build image
 	-c              compile
 	-t              tar binary

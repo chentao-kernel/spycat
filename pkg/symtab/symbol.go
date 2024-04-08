@@ -52,7 +52,7 @@ func (s *SymSession) WalkStack(line *bytes.Buffer, stack []byte, pid uint32, use
 				name = "[unknown]"
 			}
 		}
-		//fmt.Printf("==%x, name:%s\n", ip, name)
+		// fmt.Printf("==%x, name:%s\n", ip, name)
 		stackFrames = append(stackFrames, name+";")
 	}
 	reverse(stackFrames)

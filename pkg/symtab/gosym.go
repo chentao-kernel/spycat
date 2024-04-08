@@ -17,6 +17,8 @@ type GoSymbolTable struct {
 	fallbackTable SymbolTable
 }
 
+// if c { ... } else { ... return } can be simplified to if !c { ... return }
+// revive:disable:early-return
 func NewGoSymbolTable(file string, fallback *func() SymbolTable) (*GoSymbolTable, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -106,7 +108,7 @@ func parseRuntimeTextFromPclntab18(pclntab []byte) uint64 {
 	magic := binary.LittleEndian.Uint32(pclntab[0:4])
 	if magic == 0xFFFFFFF0 {
 		// https://github.com/golang/go/blob/go1.18/src/runtime/symtab.go#L395
-		//type pcHeader struct {
+		// type pcHeader struct {
 		//	magic          uint32  // 0xFFFFFFF0
 		//	pad1, pad2     uint8   // 0,0
 		//	minLC          uint8   // min instruction size
@@ -119,7 +121,7 @@ func parseRuntimeTextFromPclntab18(pclntab []byte) uint64 {
 		//	filetabOffset  uintptr // offset to the filetab variable from pcHeader
 		//	pctabOffset    uintptr // offset to the pctab variable from pcHeader
 		//	pclnOffset     uintptr // offset to the pclntab variable from pcHeader
-		//}
+		//  }
 		textStart := binary.LittleEndian.Uint64(pclntab[24:32])
 		return textStart
 	}

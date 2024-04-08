@@ -53,31 +53,31 @@ func init() {
 	Loger = NewLogger()
 	Loger.logger.SetOutput(Loger.file)
 	Loger.logger.SetLevel(Loger.level)
-	// 输出文件名及函数名
+	// output file name and function name
 	Loger.logger.SetReportCaller(true)
 	Loger.logger.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: "2006-01-02 15:03:04",
 
 		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-			//处理文件名
+			// handle file name
 			fileName := path.Base(frame.File)
 			return frame.Function, fileName
 		},
 	})
 }
 
-func (log *Logger) Info(format string, a ...any) {
-	log.logger.Info(fmt.Sprintf(format, a...))
+func (l *Logger) Info(format string, a ...any) {
+	l.logger.Info(fmt.Sprintf(format, a...))
 }
 
-func (log *Logger) Error(format string, a ...any) {
-	log.logger.Error(fmt.Sprintf(format, a...))
+func (l *Logger) Error(format string, a ...any) {
+	l.logger.Error(fmt.Sprintf(format, a...))
 }
 
-func (log *Logger) Warn(format string, a ...any) {
-	log.logger.Warn(fmt.Sprintf(format, a...))
+func (l *Logger) Warn(format string, a ...any) {
+	l.logger.Warn(fmt.Sprintf(format, a...))
 }
 
-func (log *Logger) Debug(format string, a ...any) {
-	log.logger.Debug(fmt.Sprintf(format, a...))
+func (l *Logger) Debug(format string, a ...any) {
+	l.logger.Debug(fmt.Sprintf(format, a...))
 }

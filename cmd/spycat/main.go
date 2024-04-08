@@ -30,10 +30,10 @@ func main() {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	cmd := app.NewCmd()
 	app.SubCmdInit(cmd)
-	//app.Start()
-	//go uprobe.NewBpfSession("uprobe", &core.SessionConfig{}).Start()
+	// app.Start()
+	// go uprobe.NewBpfSession("uprobe", &core.SessionConfig{}).Start()
 	cmd.RootCmd.Execute()
-	//waitSignal(sigCh)
+	// waitSignal(sigCh)
 }
 
 func init() {
