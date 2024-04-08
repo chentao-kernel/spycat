@@ -28,12 +28,11 @@ var nanoToSeconds uint64 = 1e9
 var enableProfile = true
 
 type CpuDetector struct {
-	cfg             *Config
-	cpuPidEvents    map[uint32]map[uint32]*model.TimeSegments
-	eventChan       chan *model.SpyEvent
-	stopChan        chan struct{}
-	consumers       []consumer.Consumer
-	tidExpiredQueue *tidDeleteQueue
+	cfg          *Config
+	cpuPidEvents map[uint32]map[uint32]*model.TimeSegments
+	eventChan    chan *model.SpyEvent
+	stopChan     chan struct{}
+	consumers    []consumer.Consumer
 
 	lock sync.RWMutex
 
@@ -53,13 +52,12 @@ func NewCpuDetector(cfg any, consumers []consumer.Consumer) detector.Detector {
 	cd := &CpuDetector{
 		cfg: conf,
 		// noused now
-		cpuPidEvents:    make(map[uint32]map[uint32]*model.TimeSegments, 10000),
-		eventChan:       make(chan *model.SpyEvent, conf.EventChanSize),
-		consumers:       consumers,
-		tidExpiredQueue: newTidDeleteQueue(),
-		stopChan:        make(chan struct{}),
-		previousTries:   make(map[string][]*trie.Trie),
-		tries:           make(map[string][]*trie.Trie),
+		cpuPidEvents:  make(map[uint32]map[uint32]*model.TimeSegments, 10000),
+		eventChan:     make(chan *model.SpyEvent, conf.EventChanSize),
+		consumers:     consumers,
+		stopChan:      make(chan struct{}),
+		previousTries: make(map[string][]*trie.Trie),
+		tries:         make(map[string][]*trie.Trie),
 	}
 	// only oncpu use
 	cd.initializeTries(model.OnCpu)
