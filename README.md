@@ -17,6 +17,7 @@ usage: ./args.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
 ```
 SUBCOMMANDS
   completion  generate the autocompletion script for the specified shell
+  futexsnoop  eBPF snoop user futex
   help        Help about any command
   offcpu      eBPF offcpu profiler
   oncpu       eBPF oncpu sampling profiler
