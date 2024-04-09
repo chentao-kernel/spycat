@@ -1,5 +1,10 @@
 # spycat
 An eBPF observable agent to solve os performance issue in kernel or app
+
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/chentao-kernel/spycat)](https://github.com/chentao-kernel/spycat/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chentao-kernel/spycat)](https://goreportcard.com/report/github.com/chentao-kernel/spycat)
+[![License](https://img.shields.io/github/license/chentao-kernel/spycat)](https://github.com/chentao-kernel/spycat/blob/main/LICENSE)
+
 ## Architecture
 <div align=center> <img src="doc/spycat.png" width = "60%" height="60%" /> </div>
 
