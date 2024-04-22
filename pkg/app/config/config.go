@@ -15,6 +15,7 @@ type Config struct {
 type FUTEXSNOOP struct {
 	LogLevel         string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
 	AppName          string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
+	Server           string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid              int    `def:"0" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
 	Tid              int    `def:"0" desc:"tid to trace, -1 to trace all tids" mapstructure:"tid"`
 	MaxDurMs         uint   `def:"1000000" desc:"max time(ms) wait unlock" mapstructure:"max_dur_ms"`
@@ -23,6 +24,8 @@ type FUTEXSNOOP struct {
 	MaxLockHoldUsers uint   `def:"100" desc:"max users hold the same lock" mapstructure:"max-lock-hold-users"`
 	TargetLock       uint   `def:"0" desc:"target lock addr" mapstructure:"target-lock"`
 	Stack            bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
+	BtfPath          string `def:"" desc:"btf file path" mapstructure:"btf-path"`
+	Exporter         string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type OFFCPU struct {
@@ -34,6 +37,8 @@ type OFFCPU struct {
 	MinOffcpuMs     uint   `def:"0" desc:"min offcpu ms" mapstructure:"min_offcpu"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 	OnRqUs          uint   `def:"0" desc:"min onrq us" mapstructure:"onrq"`
+	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type ONCPU struct {
@@ -51,7 +56,9 @@ type ONCPU struct {
 
 	Cpu string `def:"-1" desc:"Number of cpu you want to profile, like:1,2,4; -1 to profile the whole system" mapstructure:"cpu"`
 	// DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
-	SymbolCacheSize int `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
+	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
+	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type NET struct {

@@ -84,6 +84,7 @@ type OffcpuSession struct {
 	SymSession *symtab.SymSession
 	mapStacks  *bpf.BPFMap
 	Args       OffCpuArgs
+	BtfPath    string
 }
 
 func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -102,6 +103,7 @@ func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEve
 			Max_offcpu_ms: uint32(cfg.MaxOffcpuMs),
 			Onrq_us:       uint32(cfg.OnRqUs),
 		},
+		BtfPath: cfg.BtfPath,
 	}
 }
 
@@ -181,7 +183,10 @@ func (b *OffcpuSession) Start() error {
 		return err
 	}
 
-	args := bpf.NewModuleArgs{BPFObjBuff: offcpuBpf}
+	args := bpf.NewModuleArgs{
+		BPFObjBuff: offcpuBpf,
+		BTFObjPath: b.BtfPath,
+	}
 
 	b.Module, err = bpf.NewModuleFromBufferArgs(args)
 	if err != nil {

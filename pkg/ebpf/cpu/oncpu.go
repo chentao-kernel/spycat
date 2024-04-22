@@ -57,6 +57,7 @@ type OncpuSession struct {
 	ticker        *time.Ticker
 	cpus          []uint
 	sampleRate    uint32
+	BtfPath       string
 }
 
 func NewOnCpuBpfSession(name string, cfg *config.ONCPU, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -213,7 +214,10 @@ func (b *OncpuSession) Start() error {
 	b.modMutex.Lock()
 	defer b.modMutex.Unlock()
 
-	args := bpf.NewModuleArgs{BPFObjBuff: onCpuBpf}
+	args := bpf.NewModuleArgs{
+		BPFObjBuff: onCpuBpf,
+		BTFObjPath: b.BtfPath,
+	}
 	if b.Module, err = bpf.NewModuleFromBufferArgs(args); err != nil {
 		return err
 	}
