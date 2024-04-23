@@ -2,6 +2,8 @@ package appspy
 
 import (
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/chentao-kernel/spycat/pkg/component/consumer"
 	"github.com/chentao-kernel/spycat/pkg/component/detector"
@@ -9,9 +11,12 @@ import (
 	io "github.com/chentao-kernel/spycat/pkg/component/detector/iodetector"
 	mem "github.com/chentao-kernel/spycat/pkg/component/detector/memdetector"
 	net "github.com/chentao-kernel/spycat/pkg/component/detector/netdetector"
+	"github.com/chentao-kernel/spycat/pkg/component/exporter"
+	lokiexporter "github.com/chentao-kernel/spycat/pkg/component/exporter/loki"
 	spyexporter "github.com/chentao-kernel/spycat/pkg/component/exporter/spy"
 	"github.com/chentao-kernel/spycat/pkg/component/processor"
 	"github.com/chentao-kernel/spycat/pkg/component/receiver"
+	"github.com/chentao-kernel/spycat/pkg/core/model"
 )
 
 type AppSpy struct {
@@ -20,14 +25,14 @@ type AppSpy struct {
 	detecorManager    *detector.DetectorManager
 }
 
-func NewAppSpy() (*AppSpy, error) {
+func NewAppSpy(cfg *Config) (*AppSpy, error) {
 	app := &AppSpy{
 		componentsFactory: NewConpnentsFactory(),
 	}
 
 	app.registerFactory()
 
-	if err := app.createPipeline(); err != nil {
+	if err := app.createPipeline(cfg); err != nil {
 		return nil, fmt.Errorf("Create piplined failed:%v", err)
 	}
 	return app, nil
@@ -74,13 +79,51 @@ func (a *AppSpy) Stop() error {
 	return nil
 }
 
-func (a *AppSpy) createPipeline() error {
+func NewExporter(cfg *Config) exporter.Exporter {
+	var eper exporter.Exporter
+	switch cfg.Exporter {
+	case model.DISK:
+		var conf *spyexporter.Config
+
+		if cfg.Server == "" {
+			conf = &spyexporter.Config{
+				OutPuter: "TerminalOutputer",
+			}
+		} else {
+			conf = &spyexporter.Config{
+				OutPuter:     "FileOutputer",
+				BaseFilePath: cfg.Server,
+			}
+		}
+		eper = spyexporter.NewSpyExporter(conf)
+	case model.LOKI:
+		host, _ := os.Hostname()
+		labels := "{host=\"" + host + "\"}"
+		conf := &lokiexporter.Config{
+			Url:             cfg.Server + "/api/prom/push",
+			Labels:          labels,
+			BatchWait:       5 * time.Second,
+			BatchEntriesNum: 10000,
+		}
+		eper = lokiexporter.NewLokiExporter(conf)
+	// pyroscope exporter init in cpudetector
+	// only support for oncpu, prometheus influxdb no support
+	case model.PYROSCOPE, model.PROMETHEUS, model.INFLUXDB:
+		fallthrough
+	default:
+		conf := &spyexporter.Config{
+			OutPuter: "TerminalOutputer",
+		}
+		eper = spyexporter.NewSpyExporter(conf)
+	}
+	return eper
+}
+
+func (a *AppSpy) createPipeline(cfg *Config) error {
 	// 1. create Exporter
-	exporter := spyexporter.NewSpyExporter(spyexporter.NewConfig())
-
-	// 2. create Processor, 主要用于数据聚合
-	defaultProcessor := processor.NewDefaultProcessor(processor.NewConfig(), exporter)
-
+	eper := NewExporter(cfg)
+	// 2. create Processor, used for data aggregate
+	defaultProcessor := processor.NewDefaultProcessor(processor.NewConfig(), eper)
 	// 3. create Detector
 	cpuDetectorFactory := a.componentsFactory.Detectors[cpu.DetectorCpuType]
 	cpuDetector := cpuDetectorFactory.NewComponentMember(cpuDetectorFactory.Config, []consumer.Consumer{defaultProcessor})

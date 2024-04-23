@@ -11,7 +11,7 @@ import (
 )
 
 func Start() {
-	spy, err := appspy.NewAppSpy()
+	spy, err := appspy.NewAppSpy(&appspy.Config{})
 	if err != nil {
 		fmt.Printf("New App Spy failed:%v\n", err)
 	}
@@ -27,8 +27,8 @@ func Start() {
 	receiver := spy.GetReceiver()
 
 	bpfSpyers := []core.BpfSpyer{
-		cpu.NewOffCpuBpfSession(model.OnCpu, nil, receiver.RcvChan()),
-		cpu.NewOnCpuBpfSession(model.OffCpu, nil, receiver.RcvChan()),
+		cpu.NewOffCpuBpfSession(model.OffCpu, nil, receiver.RcvChan()),
+		cpu.NewOnCpuBpfSession(model.OnCpu, nil, receiver.RcvChan()),
 	}
 
 	for _, spyer := range bpfSpyers {
