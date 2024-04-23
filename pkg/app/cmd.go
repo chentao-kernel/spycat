@@ -89,11 +89,11 @@ func SubCmdInit(cmd *Cmd) {
 }
 
 // common interface for all tools
-func RunSpy(cfg interface{}, cb func(interface{}, chan *model.SpyEvent) core.BpfSpyer) error {
+func RunSpy(cfg interface{}, conf *appspy.Config, cb func(interface{}, chan *model.SpyEvent) core.BpfSpyer) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
-	spy, err := appspy.NewAppSpy()
+	spy, err := appspy.NewAppSpy(conf)
 	if err != nil {
 		fmt.Printf("new app spy failed:%v\n", err)
 	}
@@ -127,13 +127,18 @@ func RunSpy(cfg interface{}, cb func(interface{}, chan *model.SpyEvent) core.Bpf
 
 func newFutexSnoopSpyCmd(cfg *config.FUTEXSNOOP) *cobra.Command {
 	vpr := newViper()
+
 	connectCmd := &cobra.Command{
 		Use:   "futexsnoop [flags]",
 		Short: "eBPF snoop user futex",
 		Args:  cobra.NoArgs,
 
 		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
-			return RunSpy(cfg, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+			conf := &appspy.Config{
+				Exporter: cfg.Exporter,
+				Server:   cfg.Server,
+			}
+			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
 				config, ok := cfg.(*config.FUTEXSNOOP)
 				if ok {
 					return cpu.NewFutexSnoopSession(model.FutexSnoop, config, buf)
@@ -150,13 +155,18 @@ func newFutexSnoopSpyCmd(cfg *config.FUTEXSNOOP) *cobra.Command {
 // https://blog.csdn.net/xmcy001122/article/details/124616967 cobra use
 func newOnCpuSpyCmd(cfg *config.ONCPU) *cobra.Command {
 	vpr := newViper()
+
 	connectCmd := &cobra.Command{
 		Use:   "oncpu [flags]",
 		Short: "eBPF oncpu sampling profiler",
 		Args:  cobra.NoArgs,
 
 		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
-			return RunSpy(cfg, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+			conf := &appspy.Config{
+				Exporter: cfg.Exporter,
+				Server:   cfg.Server,
+			}
+			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
 				config, ok := cfg.(*config.ONCPU)
 				if ok {
 					return cpu.NewOnCpuBpfSession(model.OnCpu, config, buf)
@@ -172,13 +182,18 @@ func newOnCpuSpyCmd(cfg *config.ONCPU) *cobra.Command {
 
 func newOffCpuSpyCmd(cfg *config.OFFCPU) *cobra.Command {
 	vpr := newViper()
+
 	connectCmd := &cobra.Command{
 		Use:   "offcpu [flags]",
 		Short: "eBPF offcpu profiler",
 		Args:  cobra.NoArgs,
 
 		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
-			return RunSpy(cfg, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+			conf := &appspy.Config{
+				Exporter: cfg.Exporter,
+				Server:   cfg.Server,
+			}
+			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
 				config, ok := cfg.(*config.OFFCPU)
 				if ok {
 					return cpu.NewOffCpuBpfSession(model.OnCpu, config, buf)

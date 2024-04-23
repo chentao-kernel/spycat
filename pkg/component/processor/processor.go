@@ -152,6 +152,7 @@ func (d *DefaultProcessor) Consume(data *model.DataBlock) error {
 	switch data.Name {
 	// offcpu事件不聚合数据直接输出给spyexporter
 	case model.OffCpu:
+		fallthrough
 	case model.FutexSnoop:
 		d.consumer.Consume(data)
 	// oncpu直接upstream

@@ -8,6 +8,7 @@ import (
 
 	"github.com/chentao-kernel/spycat/pkg/component/exporter"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
+	"github.com/chentao-kernel/spycat/pkg/log"
 )
 
 type SpyExporter struct {
@@ -24,10 +25,16 @@ func NewSpyExporter(config interface{}) exporter.Exporter {
 	var outer Outputer
 	cfg, _ := config.(*Config)
 	if cfg.OutPuter == "FileOutputer" {
+		_, err := os.Stat(cfg.BaseFilePath)
+		if err != nil {
+			log.Loger.Error("file output path not exist:%s, err:%v, use default path:%s",
+				cfg.BaseFilePath, err, "/tmp")
+			cfg.BaseFilePath = "/tmp"
+		}
 		outer = &FileOutputer{
 			Name: cfg.OutPuter,
 			config: &Config{
-				BaseFilePath: "/tmp/spycat",
+				BaseFilePath: cfg.BaseFilePath,
 			},
 			file: nil,
 		}
@@ -48,8 +55,7 @@ func NewSpyExporter(config interface{}) exporter.Exporter {
 
 func (s *SpyExporter) Consume(data *model.DataBlock) error {
 	// todo output mode diff
-	s.outputer.output(data)
-	return nil
+	return s.outputer.output(data)
 }
 
 type FileOutputer struct {
@@ -59,7 +65,6 @@ type FileOutputer struct {
 }
 
 func (f *FileOutputer) output(data *model.DataBlock) error {
-	fmt.Println("", data)
 	if f.file == nil {
 		// filename is event name, like: ebpf_offcpu
 		fileName := "ebpf_" + data.Name

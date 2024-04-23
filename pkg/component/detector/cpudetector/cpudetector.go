@@ -80,6 +80,7 @@ func (c *CpuDetector) initializeTries(appName string) {
 	}
 }
 
+// all cpu tool config will init here, config.ONCPU, config.ONCPU, config.FutexSnoop, etc
 func (c *CpuDetector) Init(cfg any) error {
 	conf, ok := cfg.(*config.ONCPU)
 	if ok {

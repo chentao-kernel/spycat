@@ -64,6 +64,7 @@ type FutexSnoopSession struct {
 	SymSession *symtab.SymSession
 	mapStacks  *bpf.BPFMap
 	Args       FutexSnoopArgs
+	BtfPath    string
 }
 
 func NewFutexSnoopSession(name string, cfg *config.FUTEXSNOOP, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -84,6 +85,7 @@ func NewFutexSnoopSession(name string, cfg *config.FUTEXSNOOP, buf chan *model.S
 			Stack:            cfg.Stack,
 			MaxLockHoldUsers: uint32(cfg.MaxLockHoldUsers),
 		},
+		BtfPath: cfg.BtfPath,
 	}
 }
 
@@ -163,7 +165,10 @@ func (b *FutexSnoopSession) Start() error {
 		return err
 	}
 
-	args := bpf.NewModuleArgs{BPFObjBuff: futexSnoopBpf}
+	args := bpf.NewModuleArgs{
+		BPFObjBuff: futexSnoopBpf,
+		BTFObjPath: b.BtfPath,
+	}
 
 	b.Module, err = bpf.NewModuleFromBufferArgs(args)
 	if err != nil {

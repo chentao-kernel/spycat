@@ -1,5 +1,14 @@
 package model
 
+// expoter type
+const (
+	LOKI       = "loki"
+	PROMETHEUS = "prometheus"
+	DISK       = "disk"
+	INFLUXDB   = "influxdb"
+	PYROSCOPE  = "pyroscope"
+)
+
 const (
 	OffCpu     = "offcpu"
 	IrqOff     = "irqoff"
