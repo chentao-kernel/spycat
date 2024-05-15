@@ -3,7 +3,7 @@ module github.com/chentao-kernel/spycat
 go 1.20
 
 require (
-	github.com/aquasecurity/libbpfgo v0.3.0-libbpf-0.8.0
+	github.com/aquasecurity/libbpfgo v0.5.0-libbpf-1.2
 	github.com/cilium/ebpf v0.12.3
 	github.com/fatih/color v1.13.0
 	github.com/prometheus/client_golang v1.18.0
