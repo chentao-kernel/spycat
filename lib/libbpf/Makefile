@@ -1,4 +1,4 @@
-LIBBPF_VERSION ?= v0.8.1
+LIBBPF_VERSION ?= v1.2.0
 LIBBPF_SRC = $(CURDIR)/src/src
 LIBBPF_DESTDIR = $(CURDIR)/lib/include
 
