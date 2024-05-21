@@ -339,6 +339,8 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 			labels.AddIntValue(model.CpuOffUs_T, int64(userAttributes.GetUintValue()/1000))
 		}
 	}
+	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
 	return labels, nil
 }
 
