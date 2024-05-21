@@ -9,7 +9,8 @@ type Config struct {
 
 	ONCPU      ONCPU      `skip:"true" mapstructure:",squash"`
 	OFFCPU     OFFCPU     `skip:"true" mapstructure:",squash"`
-	FUTEXSNOOP FUTEXSNOOP `skip:"true" mapstructire:",squash"`
+	FUTEXSNOOP FUTEXSNOOP `skip:"true" mapstructure:",squash"`
+	SYSCALL    SYSCALL    `skip:"true" mapstructure:",squash"`
 }
 
 type FUTEXSNOOP struct {
@@ -26,6 +27,20 @@ type FUTEXSNOOP struct {
 	Stack            bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
 	BtfPath          string `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter         string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+}
+
+type SYSCALL struct {
+	LogLevel        string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	AppName         string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
+	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
+	Pid             int    `def:"0" desc:"pid to trace, 0 to trace all pids" mapstructure:"pid"`
+	Tid             int    `def:"0" desc:"tid to trace, 0 to trace all tids" mapstructure:"tid"`
+	MaxDurMs        uint   `def:"10000" desc:"max time(ms) wait unlock" mapstructure:"max_dur_ms"`
+	MinDurMs        uint   `def:"1" desc:"min time(ms) wait unlock" mapstructure:"min_dur_ms"`
+	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
+	Stack           bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
+	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type OFFCPU struct {

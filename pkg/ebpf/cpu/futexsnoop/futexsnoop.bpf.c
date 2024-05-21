@@ -182,8 +182,6 @@ int futex_exit(struct syscall_trace_exit *ctx)
 	if (args->stack)
 		hkey.user_stack_id =
 			bpf_get_stackid(ctx, &stack_map, BPF_F_USER_STACK);
-	else
-		hkey.pid_tgid >>= 32;
 
 	histp = bpf_map_lookup_or_try_init(&hists_map, &hkey, &initial_hist);
 	if (!histp)

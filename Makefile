@@ -51,6 +51,7 @@ ebpf.o: libbpf
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.c -o $(EBPF_SRC)/cpu/offcpu/offcpu.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.c -o $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.c -o $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.o
+	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/syscall/syscall.bpf.c -o $(EBPF_SRC)/cpu/syscall/syscall.bpf.o
 
 all: generate ebpf.o
 	@echo "go build $(TARGET)"

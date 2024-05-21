@@ -62,6 +62,7 @@ func SubCmdInit(cmd *Cmd) {
 		newOffCpuSpyCmd(&cmd.cfg.OFFCPU),
 		newOnCpuSpyCmd(&cmd.cfg.ONCPU),
 		newFutexSnoopSpyCmd(&cmd.cfg.FUTEXSNOOP),
+		newSyscallSpyCmd(&cmd.cfg.SYSCALL),
 		newVersionCmd(),
 	}
 
@@ -197,6 +198,33 @@ func newOffCpuSpyCmd(cfg *config.OFFCPU) *cobra.Command {
 				config, ok := cfg.(*config.OFFCPU)
 				if ok {
 					return cpu.NewOffCpuBpfSession(model.OnCpu, config, buf)
+				}
+				return nil
+			})
+		}),
+	}
+
+	cli.PopulateFlagSet(cfg, connectCmd.Flags(), vpr)
+	return connectCmd
+}
+
+func newSyscallSpyCmd(cfg *config.SYSCALL) *cobra.Command {
+	vpr := newViper()
+
+	connectCmd := &cobra.Command{
+		Use:   "syscall [flags]",
+		Short: "eBPF snoop syscall",
+		Args:  cobra.NoArgs,
+
+		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
+			conf := &appspy.Config{
+				Exporter: cfg.Exporter,
+				Server:   cfg.Server,
+			}
+			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+				config, ok := cfg.(*config.SYSCALL)
+				if ok {
+					return cpu.NewSyscallSession(model.Syscall, config, buf)
 				}
 				return nil
 			})

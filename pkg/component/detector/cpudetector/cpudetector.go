@@ -204,6 +204,8 @@ func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 		dataBlock, err = c.irqoffHandler(e)
 	case model.FutexSnoop:
 		dataBlock, err = c.futexsnoopHandler(e)
+	case model.Syscall:
+		dataBlock, err = c.syscallHandler(e)
 	default:
 		return nil
 	}
@@ -246,6 +248,24 @@ func (c *CpuDetector) ConsumeCommEvent(e *model.SpyEvent) error {
 
 func (c *CpuDetector) irqoffHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	return nil, nil
+}
+
+func (c *CpuDetector) formatSyscallLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
+	labels := model.NewAttributeMap()
+	for i := 0; i < int(e.ParamsCnt); i++ {
+		userAttributes := e.UserAttributes[i]
+		switch {
+		case userAttributes.GetKey() == "dur_ms":
+			labels.AddIntValue(model.DurMs, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "syscall":
+			labels.AddStringValue(model.Syscall, string(userAttributes.GetValue()))
+		case userAttributes.GetKey() == "stack":
+			labels.AddStringValue(model.Stack, string(userAttributes.GetValue()))
+		}
+	}
+	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
+	return labels, nil
 }
 
 func (c *CpuDetector) formatFutexSnoopLabels(e *model.SpyEvent) (*model.AttributeMap, error) {
@@ -319,6 +339,8 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 			labels.AddIntValue(model.CpuOffUs_T, int64(userAttributes.GetUintValue()/1000))
 		}
 	}
+	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
 	return labels, nil
 }
 
@@ -327,6 +349,13 @@ func (c *CpuDetector) futexsnoopHandler(e *model.SpyEvent) (*model.DataBlock, er
 	val := e.GetUintUserAttribute("max_user_cnt")
 	metric := model.NewIntMetric(model.FutexMaxUerCountName, int64(val))
 	return model.NewDataBlock(model.FutexSnoop, labels, e.TimeStamp, metric), nil
+}
+
+func (c *CpuDetector) syscallHandler(e *model.SpyEvent) (*model.DataBlock, error) {
+	labels, _ := c.formatSyscallLabels(e)
+	val := e.GetUintUserAttribute("dur_ms")
+	metric := model.NewIntMetric(model.Syscall, int64(val))
+	return model.NewDataBlock(model.Syscall, labels, e.TimeStamp, metric), nil
 }
 
 func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error) {
@@ -368,5 +397,5 @@ func (c *CpuDetector) ConsumeEvent(e *model.SpyEvent) error {
 
 // Notice: hard code, new tool added update this function
 func (c *CpuDetector) OwnedEvents() []string {
-	return []string{model.OffCpu, model.IrqOff, model.OnCpu, model.FutexSnoop}
+	return []string{model.OffCpu, model.IrqOff, model.OnCpu, model.FutexSnoop, model.Syscall}
 }
