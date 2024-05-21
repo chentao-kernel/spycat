@@ -14,6 +14,7 @@ const (
 	IrqOff     = "irqoff"
 	OnCpu      = "oncpu"
 	FutexSnoop = "futexsnoop"
+	Syscall    = "syscall"
 	OtherEvent = "other_event"
 )
 
@@ -62,6 +63,9 @@ const (
 	AvgDur     = "avg_dur"
 	LockCnt    = "lock_cnt"
 	Stack      = "stack"
+
+	// for syscall
+	DurMs = "dur_ms"
 )
 
 const (
