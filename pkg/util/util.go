@@ -1,15 +1,22 @@
 package util
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/chentao-kernel/spycat/pkg/log"
 )
 
 const cpuOnline = "/sys/devices/system/cpu/online"
+const DEBUGFS = "/sys/kernel/debug/tracing"
+const TRACEFS = "/sys/kernel/tracing"
+const KPROBELIST = "/sys/kernel/debug/kprobes/blacklist"
 
 func PrintStructFields(s interface{}) {
 	v := reflect.ValueOf(s)
@@ -102,4 +109,66 @@ func PrintStack() {
 		buf = make([]byte, 2*len(buf))
 	}
 	fmt.Printf("Stack trace:\n%s\n", buf)
+}
+
+func TracePointExists(category string, event string) bool {
+	path := filepath.Join(DEBUGFS, "events", category, event, "format")
+	_, err := os.Stat(path)
+
+	return err == nil
+}
+
+func readKprobeBlacklist() ([]string, error) {
+	file, err := os.Open(KPROBELIST)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var blacklist []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " ")
+		if len(parts) == 2 {
+			blacklist = append(blacklist, parts[1])
+		}
+	}
+	return blacklist, nil
+}
+
+func checkKallsyms(name string) bool {
+	file, err := os.Open("/proc/kallsyms")
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	// TODO: record kernel syms in global variable
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " ")
+		if len(parts) >= 3 && parts[2] == name {
+			return true
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return false
+	}
+	return false
+}
+
+func KprobeExists(name string) bool {
+	blacklist, err := readKprobeBlacklist()
+	if err != nil {
+		log.Loger.Error("failed to read kprobe list:%v\n", err)
+	} else {
+		for _, sym := range blacklist {
+			if sym == name {
+				return false
+			}
+		}
+	}
+	return checkKallsyms(name)
 }

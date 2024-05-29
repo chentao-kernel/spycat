@@ -142,7 +142,7 @@ static void sched_cache_update(u32 pid, u32 prio, u64 ts, u32 cpu)
 	}
 }
 // todo isra.0 compile issue
-SEC("kprobe/finish_task_switch.isra.0")
+SEC("kprobe/finish_task_switch")
 int sched_switch_hook(struct pt_regs *ctx)
 {
 	struct trace_event_t *ep = NULL;

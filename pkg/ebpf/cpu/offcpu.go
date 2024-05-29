@@ -114,9 +114,23 @@ func (b *OffcpuSession) attachProgs() error {
 		if prog == nil {
 			break
 		}
-		if _, err := prog.AttachGeneric(); err != nil {
-			return err
+		if prog.Name() == "sched_switch_hook" {
+			var name string
+			ret := util.KprobeExists("finish_task_switch")
+			if ret {
+				name = "finish_task_switch"
+			} else {
+				name = "finish_task_switch.isra.0"
+			}
+			if _, err := prog.AttachKprobe(name); err != nil {
+				return err
+			}
+		} else {
+			if _, err := prog.AttachGeneric(); err != nil {
+				return err
+			}
 		}
+
 		fmt.Printf("prog:%s attach success\n", prog.GetName())
 	}
 	return nil
