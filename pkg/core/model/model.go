@@ -155,6 +155,8 @@ type CpuEvent struct {
 	RunLatUs_T uint32
 	Stack_T    string
 	Log        string
+	DurMs      uint32
+	RunqDurMs  uint32
 }
 
 func (c *CpuEvent) StartTimestamp() uint64 {

@@ -4,7 +4,9 @@
 #include "vmlinux.h"
 
 #define TASK_COMM_LEN 16
-#define SCHED_CACHE_SIZE 1024
+#define SCHED_CACHE_SIZE 512
+#define SCHED_CACHE_RECORD_ON 0
+#define SCHED_CACHE_RECORD_OFF 1
 
 struct pid_info {
 	__u32 pid;
@@ -16,12 +18,7 @@ struct user_args {
 	__u32 tgid;
 	__u32 min_offcpu_ms;
 	__u32 max_offcpu_ms;
-	__u32 onrq_us;
-};
-
-struct val_t {
-	__u64 delta;
-	char comm[TASK_COMM_LEN];
+	__u32 rq_dur_ms;
 };
 
 struct waker_t {
@@ -38,6 +35,7 @@ struct waker_t {
 	__u64 onrq_ns;
 	__u32 offcpu_id;
 	__u32 oncpu_id;
+	__u64 run_delay_ns;
 };
 
 struct target_t {
@@ -54,13 +52,18 @@ struct target_t {
 	__u64 onrq_ns;
 	__u32 offcpu_id;
 	__u32 oncpu_id;
+	__u64 run_delay_ns;
 };
 
 struct perf_event_t {
 	struct waker_t waker;
 	struct target_t target;
-	__u64 offtime_delta;
-	__u64 ts;
+	__u64 dur_ms;
+	__u64 rq_dur_ms;
+	__u64 ts_ns;
+	/* 1: dump, 0: no dump */
+	__u32 is_sched_cache_dump;
+	__u32 cpu;
 };
 
 struct trace_event_t {
@@ -72,12 +75,15 @@ struct trace_event_t {
 struct sched_record {
 	u32 pid;
 	u32 prio;
+	char comm[TASK_COMM_LEN];
 	u64 ts;
 };
 
 struct sched_cached {
-	int cpu;
+	u32 status;
+	u32 cpu;
 	u32 id;
+	u32 pad;
 	struct sched_record records[SCHED_CACHE_SIZE];
 };
 
