@@ -24,6 +24,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	SCHED_CACHE_SIZE      = 512
+	SCHED_CACHE_DUMP_STEP = 10
+)
+
 var (
 	bind, configFile string
 )
@@ -42,6 +47,7 @@ type Waker struct {
 	Onrq_ns       uint64
 	Offcpu_id     uint32
 	Oncpu_id      uint32
+	Run_delay_ns  uint64
 }
 
 type Target struct {
@@ -58,13 +64,31 @@ type Target struct {
 	Onrq_ns       uint64
 	Offcpu_id     uint32
 	Oncpu_id      uint32
+	Run_delay_ns  uint64
+}
+
+type SchedRecord struct {
+	Pid  uint32
+	Prio uint32
+	Comm [16]byte
+	Ts   uint64
+}
+type SchedCached struct {
+	Status  uint32
+	Cpu     uint32
+	Id      uint32
+	Pad     uint32
+	Records [SCHED_CACHE_SIZE]SchedRecord
 }
 
 type OffCpuEvent struct {
-	Waker         Waker
-	Target        Target
-	Offtime_delta uint64
-	Ts            uint64
+	Waker            Waker
+	Target           Target
+	Dur_ms           uint64
+	Rq_dur_ms        uint64
+	Ts_ns            uint64
+	IsSchedCacheDump uint32
+	Cpu              uint32
 }
 
 type OffCpuArgs struct {
@@ -72,7 +96,7 @@ type OffCpuArgs struct {
 	Tgid          uint32
 	Min_offcpu_ms uint32
 	Max_offcpu_ms uint32
-	Onrq_us       uint32
+	Rq_dur_ms     uint32
 }
 
 type OffcpuSession struct {
@@ -80,11 +104,12 @@ type OffcpuSession struct {
 	// inner filed
 	PerfBuffer *bpf.PerfBuffer
 	// inner filed
-	Module     *bpf.Module
-	SymSession *symtab.SymSession
-	mapStacks  *bpf.BPFMap
-	Args       OffCpuArgs
-	BtfPath    string
+	Module            *bpf.Module
+	SymSession        *symtab.SymSession
+	mapStacks         *bpf.BPFMap
+	mapSchedCacheDump *bpf.BPFMap
+	Args              OffCpuArgs
+	BtfPath           string
 }
 
 func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEvent) core.BpfSpyer {
@@ -101,7 +126,7 @@ func NewOffCpuBpfSession(name string, cfg *config.OFFCPU, buf chan *model.SpyEve
 			Tgid:          uint32(cfg.Pid),
 			Min_offcpu_ms: uint32(cfg.MinOffcpuMs),
 			Max_offcpu_ms: uint32(cfg.MaxOffcpuMs),
-			Onrq_us:       uint32(cfg.OnRqUs),
+			Rq_dur_ms:     uint32(cfg.RqDurMs),
 		},
 		BtfPath: cfg.BtfPath,
 	}
@@ -143,7 +168,7 @@ func (b *OffcpuSession) initArgsMap() error {
 		Tgid:          b.Args.Tgid,
 		Min_offcpu_ms: b.Args.Min_offcpu_ms,
 		Max_offcpu_ms: b.Args.Max_offcpu_ms,
-		Onrq_us:       b.Args.Onrq_us,
+		Rq_dur_ms:     b.Args.Rq_dur_ms,
 	}
 	maps, err := b.Module.GetMap("args_map")
 	if err != nil {
@@ -222,6 +247,11 @@ func (b *OffcpuSession) Start() error {
 		return fmt.Errorf("get stack map failed:%v", err)
 	}
 
+	b.mapSchedCacheDump, err = b.Module.GetMap("sched_cache_backup_map")
+	if err != nil {
+		return fmt.Errorf("get sched_cache_backup map failed:%v", err)
+	}
+
 	err = b.attachProgs()
 	if err != nil {
 		return fmt.Errorf("attach program failed:%v", err)
@@ -268,11 +298,47 @@ func (b *OffcpuSession) ResolveStack(syms *bytes.Buffer, stackId int32, pid uint
 	return nil
 }
 
+func (b *OffcpuSession) schedCacheDump(cpu uint32) {
+	var cache_event SchedCached
+
+	key := unsafe.Pointer(&cpu)
+	value, err := b.mapSchedCacheDump.GetValue(key)
+	if err != nil {
+		log.Loger.Error("sched cache map get failed: %s", err)
+		return
+	}
+
+	if err = binary.Read(bytes.NewBuffer(value), binary.LittleEndian, &cache_event); err != nil {
+		log.Loger.Error("parse event: %s", err)
+	}
+
+	for i := 0; i < SCHED_CACHE_SIZE; i += SCHED_CACHE_DUMP_STEP {
+		spyEvent := &model.SpyEvent{}
+
+		spyEvent.Name = model.OffCpu
+		spyEvent.TimeStamp = uint64(time.Now().Unix())
+		spyEvent.Class.Name = cpudetector.DetectorCpuType
+		spyEvent.Class.Event = model.OffCpu
+		spyEvent.SetUserAttributeWithUint32("cpu", cpu)
+		spyEvent.Task.Tid = cache_event.Records[i].Pid
+		spyEvent.Task.Comm = string(cache_event.Records[i].Comm[:])
+		spyEvent.SetUserAttributeWithUint32("cache_id", uint32(i))
+		spyEvent.SetUserAttributeWithUint64("ts", cache_event.Records[i].Ts)
+		spyEvent.SetUserAttributeWithUint32("prio", cache_event.Records[i].Prio)
+		b.Session.DataBuffer <- spyEvent
+	}
+}
+
 func (b *OffcpuSession) HandleEvent(data []byte) {
-	var event OffCpuEvent
 	spyEvent := &model.SpyEvent{}
+	var event OffCpuEvent
+
 	if err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &event); err != nil {
 		log.Loger.Error("parse event: %s", err)
+	}
+
+	if event.IsSchedCacheDump == 1 {
+		b.schedCacheDump(event.Cpu)
 	}
 	// util.PrintStructFields(event)
 	spyEvent.Name = model.OffCpu
@@ -281,13 +347,12 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	spyEvent.Class.Event = model.OffCpu
 	spyEvent.Task.Pid = event.Target.Tgid
 	spyEvent.Task.Tid = event.Target.Pid
-	// spyEvent.Task.Comm = strings.ReplaceAll(string(event.Target.Comm[:]), "\u0000", "")
 	spyEvent.Task.Comm = string(event.Target.Comm[:])
-	spyEvent.SetUserAttributeWithUint32("w_pid", event.Waker.Pid)
-	spyEvent.SetUserAttributeWithUint32("w_tgid", event.Waker.Tgid)
+
+	spyEvent.SetUserAttributeWithUint32("w_tid", event.Waker.Pid)
+	spyEvent.SetUserAttributeWithUint32("w_pid", event.Waker.Tgid)
 	spyEvent.SetUserAttributeWithUint32("w_onrq_oncpu", uint32(event.Waker.Oncpu_ns-event.Waker.Onrq_ns))
 	spyEvent.SetUserAttributeWithUint32("w_offcpu_oncpu", uint32(event.Waker.Oncpu_ns-event.Waker.Offcpu_ns))
-	// todo
 	spyEvent.SetUserAttributeWithByteBuf("w_comm", event.Waker.Comm[:])
 	syms := bytes.NewBuffer(nil)
 	b.ResolveStack(syms, event.Waker.Kern_stack_id, 0, false)
@@ -296,17 +361,16 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	b.ResolveStack(syms, event.Waker.User_stack_id, event.Waker.Tgid, true)
 	spyEvent.SetUserAttributeWithByteBuf("w_stack", syms.Bytes())
 
-	spyEvent.SetUserAttributeWithUint32("wt_pid", event.Waker.T_pid)
-	spyEvent.SetUserAttributeWithByteBuf("wt_comm", event.Waker.T_Comm[:])
-	spyEvent.SetUserAttributeWithUint32("t_pid", event.Target.Pid)
-	spyEvent.SetUserAttributeWithUint32("t_tgid", event.Target.Tgid)
+	spyEvent.SetUserAttributeWithUint32("t_tid", event.Target.Pid)
+	spyEvent.SetUserAttributeWithUint32("t_pid", event.Target.Tgid)
 	spyEvent.SetUserAttributeWithUint32("t_onrq_oncpu", uint32(event.Target.Oncpu_ns-event.Target.Onrq_ns))
 	spyEvent.SetUserAttributeWithUint32("t_offcpu_oncpu", uint32(event.Target.Oncpu_ns-event.Target.Offcpu_ns))
-	// todo
 	spyEvent.SetUserAttributeWithByteBuf("t_comm", event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithUint64("t_start_time", event.Target.Offcpu_ns)
 	spyEvent.SetUserAttributeWithUint64("t_end_time", event.Target.Oncpu_ns)
-	spyEvent.SetUserAttributeWithUint64("ts", event.Ts)
+	spyEvent.SetUserAttributeWithUint64("ts", event.Ts_ns)
+	spyEvent.SetUserAttributeWithUint64("dur_ms", event.Dur_ms)
+	spyEvent.SetUserAttributeWithUint64("rq_dur_ms", event.Rq_dur_ms)
 
 	syms.Reset()
 	b.ResolveStack(syms, event.Target.Kern_stack_id, 0, false)
@@ -314,12 +378,6 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	b.ResolveStack(syms, event.Target.User_stack_id, event.Target.Tgid, true)
 	spyEvent.SetUserAttributeWithByteBuf("t_stack", syms.Bytes())
 
-	/*
-		fmt.Printf("waker:%s, pid:%d, tgid:%d, target:%s, t_pid:%d, uid:%d, kid:%d\n", string(event.Waker.Comm[:]),
-			event.Waker.Pid, event.Waker.Tgid, string(event.Waker.T_Comm[:]), event.Waker.Pid, event.Waker.User_stack_id, event.Waker.Kern_stack_id)
-		fmt.Printf("target:%s, pid:%d, tgid:%d, uid:%d, kid:%d\n", string(event.Target.Comm[:]),
-			event.Target.Pid, event.Target.Tgid, event.Target.User_stack_id, event.Target.Kern_stack_id)
-	*/
 	b.Session.DataBuffer <- spyEvent
 }
 

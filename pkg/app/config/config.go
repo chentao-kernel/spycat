@@ -51,7 +51,7 @@ type OFFCPU struct {
 	MaxOffcpuMs     uint   `def:"100000000" desc:"max offcpu ms" mapstructure:"max_offcpu"`
 	MinOffcpuMs     uint   `def:"0" desc:"min offcpu ms" mapstructure:"min_offcpu"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
-	OnRqUs          uint   `def:"0" desc:"min onrq us" mapstructure:"onrq"`
+	RqDurMs         uint   `def:"0" desc:"min onrq ms" mapstructure:"rq-dur"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
