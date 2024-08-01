@@ -4,6 +4,7 @@
 #ifndef __SYSCALL_TABLE_H
 #define __SYSCALL_TABLE_H
 
+/* refrence: https://filippo.io/linux-syscall-table/ */
 const char *syscall_table_x86[] = { "read",
 				    "write",
 				    "open",

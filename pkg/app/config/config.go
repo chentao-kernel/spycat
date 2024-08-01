@@ -35,8 +35,9 @@ type SYSCALL struct {
 	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid             int    `def:"0" desc:"pid to trace, 0 to trace all pids" mapstructure:"pid"`
 	Tid             int    `def:"0" desc:"tid to trace, 0 to trace all tids" mapstructure:"tid"`
-	MaxDurMs        uint   `def:"10000" desc:"max time(ms) wait unlock" mapstructure:"max_dur_ms"`
-	MinDurMs        uint   `def:"1" desc:"min time(ms) wait unlock" mapstructure:"min_dur_ms"`
+	MaxDurMs        uint   `def:"10000" desc:"max time(ms) syscall used" mapstructure:"max_dur_ms"`
+	MinDurMs        uint   `def:"1" desc:"min time(ms) syscall used" mapstructure:"min_dur_ms"`
+	Syscall         string `def:"" desc:"set syscall to filter event" mapstructure:"syscall"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 	Stack           bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`

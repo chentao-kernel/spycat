@@ -10,6 +10,7 @@ struct user_args {
 	__u32 min_syscall_ms;
 	__u32 max_syscall_ms;
 	bool stack;
+	__u32 syscall_id;
 };
 
 struct syscall_event {
