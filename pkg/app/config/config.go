@@ -35,8 +35,9 @@ type SYSCALL struct {
 	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid             int    `def:"0" desc:"pid to trace, 0 to trace all pids" mapstructure:"pid"`
 	Tid             int    `def:"0" desc:"tid to trace, 0 to trace all tids" mapstructure:"tid"`
-	MaxDurMs        uint   `def:"10000" desc:"max time(ms) wait unlock" mapstructure:"max_dur_ms"`
-	MinDurMs        uint   `def:"1" desc:"min time(ms) wait unlock" mapstructure:"min_dur_ms"`
+	MaxDurMs        uint   `def:"10000" desc:"max time(ms) syscall used" mapstructure:"max_dur_ms"`
+	MinDurMs        uint   `def:"1" desc:"min time(ms) syscall used" mapstructure:"min_dur_ms"`
+	Syscall         string `def:"" desc:"set syscall to filter event" mapstructure:"syscall"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 	Stack           bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
@@ -51,7 +52,7 @@ type OFFCPU struct {
 	MaxOffcpuMs     uint   `def:"100000000" desc:"max offcpu ms" mapstructure:"max_offcpu"`
 	MinOffcpuMs     uint   `def:"0" desc:"min offcpu ms" mapstructure:"min_offcpu"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
-	OnRqUs          uint   `def:"0" desc:"min onrq us" mapstructure:"onrq"`
+	RqDurMs         uint   `def:"0" desc:"min onrq ms" mapstructure:"rq-dur"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }

@@ -6,9 +6,11 @@ import (
 	_ "embed"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
@@ -35,16 +37,17 @@ type SyscallEvent struct {
 	DurNs     uint64
 	UStackId  int64
 	KStackId  int64
-	SyscallId uint64
+	SyscallId uint32
 	Comm      [16]byte
 }
 
 type SyscallArgs struct {
-	Tid      uint32
-	Pid      uint32
-	MinDurMs uint32
-	MaxDurMs uint32
-	Stack    bool
+	Tid       uint32
+	Pid       uint32
+	MinDurMs  uint32
+	MaxDurMs  uint32
+	Stack     bool
+	SyscallId uint32
 }
 
 type SyscallSession struct {
@@ -68,11 +71,12 @@ func NewSyscallSession(name string, cfg *config.SYSCALL, buf chan *model.SpyEven
 		Session:    core.NewSession(name, &core.SessionConfig{}, buf),
 		SymSession: symSession,
 		Args: SyscallArgs{
-			Pid:      uint32(cfg.Pid),
-			Tid:      uint32(cfg.Tid),
-			MinDurMs: uint32(cfg.MinDurMs),
-			MaxDurMs: uint32(cfg.MaxDurMs),
-			Stack:    cfg.Stack,
+			Pid:       uint32(cfg.Pid),
+			Tid:       uint32(cfg.Tid),
+			MinDurMs:  uint32(cfg.MinDurMs),
+			MaxDurMs:  uint32(cfg.MaxDurMs),
+			Stack:     cfg.Stack,
+			SyscallId: SyscallNameToId(cfg.Syscall),
 		},
 		BtfPath: cfg.BtfPath,
 		Arch:    runtime.GOARCH,
@@ -97,11 +101,12 @@ func (b *SyscallSession) attachProgs() error {
 func (b *SyscallSession) initArgsMap() error {
 	var id uint32
 	args := &SyscallArgs{
-		Pid:      b.Args.Pid,
-		Tid:      b.Args.Tid,
-		MinDurMs: b.Args.MinDurMs,
-		MaxDurMs: b.Args.MaxDurMs,
-		Stack:    b.Args.Stack,
+		Pid:       b.Args.Pid,
+		Tid:       b.Args.Tid,
+		MinDurMs:  b.Args.MinDurMs,
+		MaxDurMs:  b.Args.MaxDurMs,
+		Stack:     b.Args.Stack,
+		SyscallId: b.Args.SyscallId,
 	}
 	maps, err := b.Module.GetMap("args_map")
 	if err != nil {
@@ -273,21 +278,51 @@ func (b *SyscallSession) Name() string {
 func (b *SyscallSession) SyscallIdToName(id uint32) string {
 	switch b.Arch {
 	case "amd64":
+		if int(id) >= len(C.syscall_table_x86) {
+			return "unknown_" + strconv.Itoa(int(id))
+		}
 		raw_name := C.syscall_table_x86[C.int(id)]
 		name := C.GoString(raw_name)
-		// C.free(unsafe.Pointer(raw_name))
 		return name
 	case "arm":
 		fallthrough
 	case "arm64":
+		if int(id) >= len(C.syscall_table_arm) {
+			return "unknown_" + strconv.Itoa(int(id))
+		}
 		raw_name := C.syscall_table_arm[C.int(id)]
 		name := C.GoString(raw_name)
-		// C.free(unsafe.Pointer(raw_name))
 		return name
 	default:
 		log.Loger.Error("Unknown arch:%s\n", b.Arch)
 	}
 	return "unknown"
+}
+
+func SyscallNameToId(name string) uint32 {
+	switch runtime.GOARCH {
+	case "amd64":
+		for i := 0; i < len(C.syscall_table_x86); i++ {
+			c_name := C.syscall_table_x86[C.int(i)]
+			go_name := C.GoString(c_name)
+			if name == go_name {
+				return uint32(i)
+			}
+		}
+	case "arm":
+		fallthrough
+	case "arm64":
+		for i := 0; i < len(C.syscall_table_arm); i++ {
+			c_name := C.syscall_table_arm[C.int(i)]
+			go_name := C.GoString(c_name)
+			if go_name == name {
+				return uint32(i)
+			}
+		}
+	default:
+		log.Loger.Error("Unknown arch")
+	}
+	return math.MaxUint32
 }
 
 //go:embed syscall/syscall.bpf.o

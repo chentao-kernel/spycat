@@ -42,18 +42,21 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
 {
 	struct syscall_event event = { 0 };
 	struct user_args *user_args = NULL;
-	u64 id = bpf_get_current_pid_tgid();
-	pid_t pid = id >> 32;
-	u32 tid = id;
-	u32 zero = 0;
+	u64 pid_tgid = bpf_get_current_pid_tgid();
+	pid_t pid = pid_tgid >> 32;
+	u32 tid = pid_tgid;
+	u32 zero = 0, syscall_id;
 
 	user_args = bpf_map_lookup_elem(&args_map, &zero);
 	if (!user_args)
 		return 0;
 
+	syscall_id = BPF_CORE_READ(args, id);
 	if (user_args->pid && user_args->pid != pid)
 		return 0;
 	if (user_args->tid && user_args->tid != tid)
+		return 0;
+	if (user_args->syscall_id != -1 && user_args->syscall_id != syscall_id)
 		return 0;
 
 	event.ts_ns = bpf_ktime_get_ns();
@@ -67,14 +70,14 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
 SEC("tracepoint/raw_syscalls/sys_exit")
 int sys_exit(struct trace_event_raw_sys_exit *args)
 {
-	u64 id = bpf_get_current_pid_tgid();
+	u64 pid_tgid = bpf_get_current_pid_tgid();
 	struct user_args *user_args = NULL;
 	struct syscall_event *eventp = NULL;
 	struct syscall_event event = { 0 };
-	pid_t pid = id >> 32;
+	pid_t pid = pid_tgid >> 32;
 	u64 dur = 0;
-	u32 tid = id;
-	u32 zero = 0;
+	u32 tid = pid_tgid;
+	u32 zero = 0, syscall_id;
 
 	/* this happens when there is an interrupt */
 	if (args->id == -1)
@@ -84,9 +87,12 @@ int sys_exit(struct trace_event_raw_sys_exit *args)
 	if (!user_args)
 		return 0;
 
+	syscall_id = BPF_CORE_READ(args, id);
 	if (user_args->pid && user_args->pid != pid)
 		return 0;
 	if (user_args->tid && user_args->tid != tid)
+		return 0;
+	if (user_args->syscall_id != -1 && user_args->syscall_id != syscall_id)
 		return 0;
 
 	eventp = bpf_map_lookup_elem(&start, &tid);
@@ -104,7 +110,7 @@ int sys_exit(struct trace_event_raw_sys_exit *args)
 			event.k_stack_id = bpf_get_stackid(
 				args, &stack_map, BPF_F_FAST_STACK_CMP);
 		}
-		event.syscall_id = BPF_CORE_READ(args, id);
+		event.syscall_id = syscall_id;
 		bpf_get_current_comm(event.comm, sizeof(event.comm));
 		bpf_perf_event_output(args, &perf_map, BPF_F_CURRENT_CPU,
 				      &event, sizeof(event));

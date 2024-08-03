@@ -1,9 +1,12 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	_ "net/http/pprof"
 
 	"github.com/chentao-kernel/spycat/pkg/app"
 	"github.com/chentao-kernel/spycat/pkg/log"
@@ -27,6 +30,15 @@ func waitSignal(sigCh chan os.Signal) {
 
 func main() {
 	sigCh := make(chan os.Signal, 1)
+	if os.Getenv("ENABLE_SPYCAT_PPROF") == "true" {
+		go func() {
+			log.Loger.Info("Starting pprof server on :6060")
+			if err := http.ListenAndServe(":6060", nil); err != nil {
+				log.Loger.Error("pprof server failed: %v", err)
+			}
+		}()
+	}
+
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	cmd := app.NewCmd()
 	app.SubCmdInit(cmd)

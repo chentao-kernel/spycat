@@ -21,10 +21,17 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__type(key, u32); /* pid */
+	__type(key, u32);
 	__type(value, struct sched_cached);
 	__uint(max_entries, 1);
 } sched_cache_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, u32);
+	__type(value, struct sched_cached);
+	__uint(max_entries, 1024);
+} sched_cache_backup_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
@@ -46,7 +53,7 @@ struct {
 	__uint(value_size, sizeof(u32));
 } perf_map SEC(".maps");
 
-static bool allow_record(u32 tgid, u32 pid, u32 min_offtime, u32 max_offtime)
+static __always_inline bool is_target_task(u32 tgid, u32 pid)
 {
 	struct user_args *args = NULL;
 	u32 index = 0;
@@ -64,12 +71,6 @@ static bool allow_record(u32 tgid, u32 pid, u32 min_offtime, u32 max_offtime)
 	if (args->pid != -1 && args->pid == pid)
 		return true;
 
-	if (args->min_offcpu_ms < min_offtime)
-		return true;
-
-	if (args->max_offcpu_ms > max_offtime)
-		return true;
-
 	return false;
 }
 
@@ -78,16 +79,19 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 {
 	struct trace_event_t *ep;
 	struct trace_event_t event = { 0 };
-	u64 pid_tgid;
-	u64 ts;
+	struct task_struct *task;
+	u64 pid_tgid, ts;
 
 	bpf_core_read(&event.target.pid, sizeof(u32), &p->pid);
 	bpf_core_read(&event.target.tgid, sizeof(u32), &p->tgid);
 
-	if (!allow_record(event.target.tgid, event.target.pid, 0, -1))
+	if (!is_target_task(event.target.tgid, event.target.pid))
 		return 0;
+
 	/* update waker info */
 	pid_tgid = bpf_get_current_pid_tgid();
+	task = (void *)bpf_get_current_task();
+	ts = bpf_ktime_get_ns();
 	ep = bpf_map_lookup_elem(&start, &event.target.pid);
 	if (ep) {
 		ep->waker.kern_stack_id =
@@ -97,22 +101,21 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 
 		/* target on runq time */
-		ts = bpf_ktime_get_ns();
 		ep->target.onrq_ns = ts;
 		ep->waker.offcpu_ns = ts;
 	} else {
 		event.waker.pid = (u32)pid_tgid;
 		event.waker.tgid = pid_tgid >> 32;
+		bpf_probe_read(&event.waker.pid, sizeof(u32), &task->pid);
+		bpf_probe_read(&event.waker.tgid, sizeof(u32), &task->tgid);
 		bpf_get_current_comm(&event.waker.comm, TASK_COMM_LEN);
 		event.waker.kern_stack_id =
 			bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
 		event.waker.user_stack_id = bpf_get_stackid(
 			ctx, &stack_map,
 			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
-		ts = bpf_ktime_get_ns();
 		event.target.onrq_ns = ts;
 		event.waker.offcpu_ns = ts;
-		bpf_probe_read(&event.target.pid, sizeof(u32), &p->pid);
 		bpf_probe_read(event.target.comm, TASK_COMM_LEN, p->comm);
 		event.waker.t_pid = event.target.pid;
 		bpf_probe_read(event.waker.t_comm, TASK_COMM_LEN, p->comm);
@@ -123,7 +126,24 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 	return 0;
 }
 
-static void sched_cache_update(u32 pid, u32 prio, u64 ts, u32 cpu)
+static __always_inline void sched_cache_dump(void *ctx, u32 cpu)
+{
+	struct sched_cached *cache = NULL;
+	u32 zero = 0, id = cpu;
+
+	cache = bpf_map_lookup_elem(&sched_cache_map, &zero);
+	if (cache) {
+		cache->status = SCHED_CACHE_RECORD_OFF;
+		// libbpfgo will lost events
+		//bpf_perf_event_output(ctx, &perf_map, BPF_F_CURRENT_CPU, cache, sizeof(struct sched_cached));
+		bpf_map_update_elem(&sched_cache_backup_map, &id, cache,
+				    BPF_ANY);
+		cache->status = SCHED_CACHE_RECORD_ON;
+	}
+}
+
+static __always_inline void sched_cache_update(struct task_struct *p, u64 ts,
+					       u32 cpu)
 {
 	struct sched_cached *cache = NULL;
 	u32 zero = 0;
@@ -134,10 +154,13 @@ static void sched_cache_update(u32 pid, u32 prio, u64 ts, u32 cpu)
 		return;
 
 	id = cache->id % SCHED_CACHE_SIZE;
-	if (id < SCHED_CACHE_SIZE) {
+	if (id < SCHED_CACHE_SIZE && cache->status == SCHED_CACHE_RECORD_ON) {
 		cache->cpu = cpu;
-		cache->records[id].pid = pid;
-		cache->records[id].prio = prio;
+		bpf_probe_read(&cache->records[id].pid, sizeof(u32), &p->pid);
+		cache->records[id].ts = ts;
+		bpf_probe_read(&cache->records[id].prio, sizeof(u32), &p->prio);
+		bpf_probe_read(&cache->records[id].comm, TASK_COMM_LEN,
+			       p->comm);
 		cache->id++;
 	}
 }
@@ -148,60 +171,59 @@ int sched_switch_hook(struct pt_regs *ctx)
 	struct trace_event_t *ep = NULL;
 	struct user_args *args = NULL;
 	struct perf_event_t perf_event = { 0 };
-	struct pid_info prev_pid = { 0 };
-	struct pid_info cur_pid = { 0 };
-	struct task_struct *pre_task = NULL;
-	struct task_struct *cur_task = NULL;
-	u32 args_map_id = 0;
-	u64 tgid_pid;
-	bool is_target = false;
-	u64 curr_ts;
-	u32 cpu_id;
-	s32 delta;
+	struct pid_info prev_pid = { 0 }, cur_pid = { 0 };
+	struct task_struct *pre_task = NULL, *cur_task = NULL;
+	u32 args_map_id = 0, cpu_id;
+	u64 tgid_pid, curr_ts, cur_task_run_delay_ns;
+	s32 delta, runq_dur;
 
 	pre_task = (void *)PT_REGS_PARM1_CORE(ctx);
 	args = bpf_map_lookup_elem(&args_map, &args_map_id);
 	if (!args)
 		return 0;
-
+	cur_task = (void *)bpf_get_current_task();
 	tgid_pid = bpf_get_current_pid_tgid();
 	cur_pid.pid = (u32)tgid_pid;
 	cur_pid.tgid = tgid_pid >> 32;
+
+	prev_pid.tgid = BPF_CORE_READ(pre_task, tgid);
+	prev_pid.pid = BPF_CORE_READ(pre_task, pid);
 	curr_ts = bpf_ktime_get_ns();
 	cpu_id = bpf_get_smp_processor_id();
 
-	if (args->onrq_us) {
-		u32 prio;
-		cur_task = (void *)bpf_get_current_task();
-		bpf_probe_read(&prio, sizeof(prio), &cur_task->prio);
-		sched_cache_update(cur_pid.pid, prio, curr_ts, cpu_id);
+	if (args->rq_dur_ms) {
+		sched_cache_update(pre_task, curr_ts, cpu_id);
 	}
 
-	prev_pid.tgid = BPF_CORE_READ(pre_task, tgid);
+	/* record prev task info */
+	if (is_target_task(prev_pid.pid, prev_pid.tgid)) {
+		ep = bpf_map_lookup_elem(&start, &prev_pid.pid);
+		if (!ep)
+			return 0;
 
-	if (args->pid == -1 && args->tgid == -1)
-		is_target = true;
+		ep->target.offcpu_ns = curr_ts;
+		ep->target.offcpu_id = cpu_id;
+		bpf_probe_read(&ep->target.run_delay_ns, sizeof(u64),
+			       &pre_task->sched_info.run_delay);
+	}
 
-	if ((args->tgid != -1) && ((args->tgid == cur_pid.tgid)))
-		is_target = true;
-
-	if (!is_target)
+	/* record current task info */
+	if (!is_target_task(cur_pid.pid, cur_pid.tgid))
 		return 0;
 
 	ep = bpf_map_lookup_elem(&start, &cur_pid.pid);
 	if (!ep)
 		return 0;
 
-	// bpf_printk("prev_pid%u, prev_tgid:%u\n", prev_pid.pid,
-	// prev_pid.tgid); bpf_printk("min:%u, max:%u\n", args->min_offcpu_ms,
-	// args->max_offcpu_ms);
 	/* target oncpu time */
 	ep->target.oncpu_id = cpu_id;
+	bpf_core_read(&cur_task_run_delay_ns, sizeof(u64),
+		      &cur_task->sched_info.run_delay);
 
 	if (ep->target.oncpu_ns != 0) {
 		delta = (curr_ts - ep->target.oncpu_ns) / 1000000;
-		if ((delta > 0) && (delta > args->min_offcpu_ms) &&
-		    (delta < args->max_offcpu_ms)) {
+		if ((delta >= args->min_offcpu_ms) &&
+		    (delta <= args->max_offcpu_ms)) {
 			perf_event.target = ep->target;
 			perf_event.target.kern_stack_id = bpf_get_stackid(
 				ctx, &stack_map, BPF_F_FAST_STACK_CMP);
@@ -211,110 +233,29 @@ int sched_switch_hook(struct pt_regs *ctx)
 			bpf_get_current_comm(perf_event.target.comm,
 					     TASK_COMM_LEN);
 			perf_event.waker = ep->waker;
-			perf_event.ts = curr_ts;
-			perf_event.offtime_delta = delta;
+			perf_event.ts_ns = curr_ts;
+			perf_event.dur_ms = delta;
+			runq_dur = (cur_task_run_delay_ns -
+				    ep->target.run_delay_ns) /
+				   1000000;
+			perf_event.rq_dur_ms = runq_dur;
 
+			/* output task occupy cpu */
+			if (runq_dur > args->rq_dur_ms &&
+			    args->rq_dur_ms != 0) {
+				sched_cache_dump(ctx, cpu_id);
+				perf_event.is_sched_cache_dump = 1;
+				perf_event.cpu = cpu_id;
+			}
 			/* output event */
 			bpf_perf_event_output(ctx, &perf_map, BPF_F_CURRENT_CPU,
 					      &perf_event, sizeof(perf_event));
 		}
 	}
 	ep->target.oncpu_ns = curr_ts;
+	ep->target.run_delay_ns = cur_task_run_delay_ns;
 
 	return 0;
 }
-#if 0
-SEC("raw_tp/sched_switch")
-int BPF_PROG(sched_switch_hook, bool preempt, struct task_struct *prev,
-	     struct task_struct *next)
-{
-	struct trace_event_t *trace_event = NULL;
-	struct user_args *args = NULL;
-	struct perf_event_t perf_event = { 0 };
-	struct pid_info prev_pid = { 0 };
-	struct pid_info next_pid = { 0 };
-	u32 args_map_id = 0;
-	bool is_target = false;
-	u64 curr_ts;
-	u32 cpu_id;
-	s32 delta;
 
-	args = bpf_map_lookup_elem(&args_map, &args_map_id);
-	if (!args)
-		return 0;
-
-	bpf_probe_read(&prev_pid.pid, sizeof(prev_pid.pid), &prev->pid);
-	bpf_probe_read(&prev_pid.tgid, sizeof(prev_pid.tgid), &prev->tgid);
-	bpf_probe_read(&next_pid.pid, sizeof(next_pid.pid), &next->pid);
-	bpf_probe_read(&next_pid.tgid, sizeof(next_pid.tgid), &next->tgid);
-
-	if (args->pid == -1 && args->tgid == -1)
-		is_target = true;
-
-	if ((args->pid != -1) &&
-	    ((args->pid == prev_pid.pid) || (args->pid == next_pid.pid)))
-		is_target = true;
-
-	if ((args->tgid != -1) &&
-	    ((args->tgid == prev_pid.tgid) || (args->tgid == next_pid.tgid)))
-		is_target = true;
-
-	if (!is_target)
-		return 0;
-
-	trace_event = bpf_map_lookup_elem(&start, &next_pid.pid);
-	if (!trace_event)
-		return 0;
-
-	// bpf_printk("prev_pid%u, prev_tgid:%u\n", prev_pid.pid,
-	// prev_pid.tgid); bpf_printk("min:%u, max:%u\n", args->min_offcpu_ms,
-	// args->max_offcpu_ms);
-	/* target oncpu time */
-	curr_ts = bpf_ktime_get_ns();
-	cpu_id = bpf_get_smp_processor_id();
-	trace_event->target.oncpu_ns = curr_ts;
-	trace_event->target.oncpu_id = cpu_id;
-
-	if (trace_event->target.offcpu_ns != 0) {
-		delta = (curr_ts - trace_event->target.offcpu_ns) / 1000000;
-		if ((delta > 0) && (delta > args->min_offcpu_ms) &&
-		    (delta < args->max_offcpu_ms)) {
-			perf_event.target = trace_event->target;
-			perf_event.waker = trace_event->waker;
-			perf_event.ts = curr_ts;
-			perf_event.offtime_delta = delta;
-
-			/* output event */
-			bpf_perf_event_output(ctx, &perf_map, BPF_F_CURRENT_CPU,
-					      &perf_event, sizeof(perf_event));
-		}
-	}
-	/* update target offcpu info */
-	trace_event = bpf_map_lookup_elem(&start, &prev_pid.pid);
-	if (trace_event) {
-		trace_event->target.offcpu_ns = curr_ts;
-		trace_event->target.offcpu_id = cpu_id;
-		trace_event->target.kern_stack_id =
-			bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
-		trace_event->target.user_stack_id = bpf_get_stackid(
-			ctx, &stack_map,
-			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
-	} else {
-		struct trace_event_t event = { 0 };
-		event.target.pid = prev_pid.pid;
-		event.target.tgid = prev_pid.tgid;
-		event.target.offcpu_ns = curr_ts;
-		event.target.offcpu_id = cpu_id;
-		bpf_probe_read(event.target.comm, TASK_COMM_LEN, prev->comm);
-		event.target.kern_stack_id =
-			bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
-		event.target.user_stack_id = bpf_get_stackid(
-			ctx, &stack_map,
-			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
-		bpf_map_update_elem(&start, &event.target.pid, &event, BPF_ANY);
-	}
-
-	return 0;
-}
-#endif
 char LICENSE[] SEC("license") = "GPL";
