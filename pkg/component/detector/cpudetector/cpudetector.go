@@ -332,7 +332,7 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 		case userAttributes.GetKey() == "t_comm":
 			labels.AddStringValue(model.Wakee, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
 		case userAttributes.GetKey() == "t_tid":
-			labels.AddIntValue(model.Tid_W, int64(userAttributes.GetUintValue()))
+			labels.AddIntValue(model.Tid_T, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "t_pid":
 			labels.AddIntValue(model.Pid_T, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "t_stack":
