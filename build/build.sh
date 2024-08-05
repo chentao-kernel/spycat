@@ -3,11 +3,12 @@
 #refrence:https://www.kancloud.cn/woshigrey/docker/935037
 
 read -r -d '' USAGE << EOF || true
-usage: ./build.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver]
+usage: ./build.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver -p|--proxy]
 	-b              build image
 	-c              compile
 	-t              tar binary
         -V 0.1.2 -t     tar binary with 0.1.2 version
+	-p 		add docker proxy
 EOF
 
 die() {
@@ -63,6 +64,22 @@ compile_bin() {
         fi
 }
 
+docker_proxy() {
+	sudo mkdir -p /etc/docker
+	sudo tee /etc/docker/daemon.json <<-'EOF'
+	{
+		"registry-mirrors": [
+		"https://docker.m.daocloud.io",
+		"https://dockerproxy.com",
+		"https://docker.nju.edu.cn",
+		"https://docker.mirrors.ustc.edu.cn"
+		]
+	}
+	EOF
+	sudo systemctl daemon-reload
+	sudo systemctl restart docker
+}
+
 tar_bin() {
         info "tar bin start"
         if [[ -f "${SOURCE_PATH}/spycat" ]]; then
@@ -103,6 +120,10 @@ parse_arguments() {
                                 compile_bin
                                 shift 1
                                 ;;
+                        -p|--proxy)
+				docker_proxy
+				shift 1
+				;;
                         *)
                                 echo "$USAGE"
                                 exit 1
