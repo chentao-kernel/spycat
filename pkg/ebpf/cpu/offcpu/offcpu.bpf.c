@@ -104,10 +104,10 @@ int BPF_PROG(shched_wakeup_hook, struct task_struct *p)
 		ep->waker.tgid = pid_tgid >> 32;
 		bpf_get_current_comm(ep->waker.comm, TASK_COMM_LEN);
 		ep->waker.kern_stack_id =
-				bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
+			bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
 		ep->waker.user_stack_id = bpf_get_stackid(
-				ctx, &stack_map,
-				BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
+			ctx, &stack_map,
+			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
 
 		/* target on runq time */
 		ep->target.onrq_ns = ts;
@@ -229,7 +229,8 @@ int sched_switch_hook(struct pt_regs *ctx)
 		}
 		ep->target.offcpu_ns = curr_ts;
 		ep->target.offcpu_id = cpu_id;
-		ep->target.run_delay_ns = BPF_CORE_READ(pre_task, sched_info.run_delay);
+		ep->target.run_delay_ns =
+			BPF_CORE_READ(pre_task, sched_info.run_delay);
 		return 0;
 	}
 
@@ -246,42 +247,40 @@ int sched_switch_hook(struct pt_regs *ctx)
 		      &cur_task->sched_info.run_delay);
 	ep->target.oncpu_ns = curr_ts;
 	delta = (curr_ts - ep->target.offcpu_ns) / 1000000;
-	if ((delta >= args->min_offcpu_ms) &&
-		(delta <= args->max_offcpu_ms) &&
-		/*
+	if ((delta >= args->min_offcpu_ms) && (delta <= args->max_offcpu_ms) &&
+	    /*
 		 * if offcpu_ns = 0, means we do not trace wake and sched_switch
 		 * two step completely, so we ignore it.
 		 */
-		ep->target.offcpu_ns != 0) {
-		perf_event = bpf_map_lookup_elem(&perf_event_cache_map, &args_map_id);
+	    ep->target.offcpu_ns != 0) {
+		perf_event = bpf_map_lookup_elem(&perf_event_cache_map,
+						 &args_map_id);
 		if (!perf_event)
 			return 0;
 
-		runq_dur = (cur_task_run_delay_ns -
-					ep->target.run_delay_ns) / 1000000;
+		runq_dur = (cur_task_run_delay_ns - ep->target.run_delay_ns) /
+			   1000000;
 		perf_event->target = ep->target;
-		perf_event->target.kern_stack_id = bpf_get_stackid(
-			ctx, &stack_map, BPF_F_FAST_STACK_CMP);
+		perf_event->target.kern_stack_id =
+			bpf_get_stackid(ctx, &stack_map, BPF_F_FAST_STACK_CMP);
 		perf_event->target.user_stack_id = bpf_get_stackid(
 			ctx, &stack_map,
 			BPF_F_USER_STACK | BPF_F_FAST_STACK_CMP);
-		bpf_get_current_comm(perf_event->target.comm,
-						TASK_COMM_LEN);
+		bpf_get_current_comm(perf_event->target.comm, TASK_COMM_LEN);
 		perf_event->waker = ep->waker;
 		perf_event->ts_ns = curr_ts;
 		perf_event->dur_ms = delta;
 		perf_event->rq_dur_ms = runq_dur;
 
 		/* output task occupy cpu */
-		if (runq_dur > args->rq_dur_ms &&
-			args->rq_dur_ms != 0) {
+		if (runq_dur > args->rq_dur_ms && args->rq_dur_ms != 0) {
 			sched_cache_dump(ctx, cpu_id);
 			perf_event->is_sched_cache_dump = 1;
 			perf_event->cpu = cpu_id;
 		}
 		/* output event */
 		bpf_perf_event_output(ctx, &perf_map, BPF_F_CURRENT_CPU,
-						perf_event, sizeof(struct perf_event));
+				      perf_event, sizeof(struct perf_event));
 	}
 	ep->target.run_delay_ns = cur_task_run_delay_ns;
 
