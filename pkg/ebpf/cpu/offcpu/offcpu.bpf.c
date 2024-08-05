@@ -153,9 +153,10 @@ static __always_inline void sched_cache_update(struct task_struct *p, u64 ts,
 					       u32 cpu)
 {
 	struct sched_cached *cache = NULL;
-	u32 id = 0;
+	u32 zero = 0;
+	u32 id;
 
-	cache = bpf_map_lookup_elem(&sched_cache_map, &id);
+	cache = bpf_map_lookup_elem(&sched_cache_map, &zero);
 	if (!cache)
 		return;
 
