@@ -255,8 +255,8 @@ func (c *CpuDetector) formatSyscallLabels(e *model.SpyEvent) (*model.AttributeMa
 	for i := 0; i < int(e.ParamsCnt); i++ {
 		userAttributes := e.UserAttributes[i]
 		switch {
-		case userAttributes.GetKey() == "dur_ms":
-			labels.AddIntValue(model.DurMs, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "dur_us":
+			labels.AddIntValue(model.DurUs, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "syscall":
 			labels.AddStringValue(model.Syscall, string(userAttributes.GetValue()))
 		case userAttributes.GetKey() == "stack":
@@ -264,6 +264,7 @@ func (c *CpuDetector) formatSyscallLabels(e *model.SpyEvent) (*model.AttributeMa
 		}
 	}
 	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddIntValue(model.Tid, int64(e.Task.Tid))
 	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
 	return labels, nil
 }

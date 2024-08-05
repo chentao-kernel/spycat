@@ -34,7 +34,7 @@ type SyscallEvent struct {
 	Pid       uint32
 	Tid       uint32
 	TsNs      uint64
-	DurNs     uint64
+	DurUs     uint64
 	UStackId  int64
 	KStackId  int64
 	SyscallId uint32
@@ -42,8 +42,8 @@ type SyscallEvent struct {
 }
 
 type SyscallArgs struct {
-	Tid       uint32
 	Pid       uint32
+	Tid       uint32
 	MinDurMs  uint32
 	MaxDurMs  uint32
 	Stack     bool
@@ -248,7 +248,7 @@ func (b *SyscallSession) HandleEvent(data []byte) {
 	spyEvent.Task.Pid = uint32(event.Pid)
 	spyEvent.Task.Tid = uint32(event.Tid)
 	spyEvent.Task.Comm = string(event.Comm[:])
-	spyEvent.SetUserAttributeWithUint64("dur_ms", event.DurNs/1000000)
+	spyEvent.SetUserAttributeWithUint64("dur_us", event.DurUs)
 	spyEvent.SetUserAttributeWithUint32("pid", uint32(event.Pid))
 	spyEvent.SetUserAttributeWithByteBuf("comm", event.Comm[:])
 	spyEvent.SetUserAttributeWithByteBuf("syscall", []byte(b.SyscallIdToName(uint32(event.SyscallId))))

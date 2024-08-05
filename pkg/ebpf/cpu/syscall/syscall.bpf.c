@@ -103,6 +103,7 @@ int sys_exit(struct trace_event_raw_sys_exit *args)
 	if (dur / 1000000 >= user_args->min_syscall_ms &&
 	    dur / 1000000 <= user_args->max_syscall_ms) {
 		event = *eventp;
+		event.dur_us = dur / 1000;
 		if (user_args->stack) {
 			event.u_stack_id = bpf_get_stackid(
 				args, &stack_map,
