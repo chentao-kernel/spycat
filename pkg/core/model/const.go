@@ -72,6 +72,7 @@ const (
 
 	// for syscall
 	DurMs = "dur_ms"
+	DurUs = "dur_us"
 )
 
 const (

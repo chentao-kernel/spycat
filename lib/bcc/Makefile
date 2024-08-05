@@ -2,7 +2,7 @@ BCC_VERSION ?= b9554b585afe18540ba98dde5b667e5b4036f479
 
 .PHONY: bcc
 bcc:
-	test -d src || git clone http://github.com/korniltsev/bcc src
+	test -d src || git clone https://github.com/korniltsev/bcc src
 	cd src && git checkout $(BCC_VERSION)
 ifeq ($(wildcard $(shell pwd)/lib),)
 	test -d src/build && rm -rf src/build || echo bcc src/build dir does not exits

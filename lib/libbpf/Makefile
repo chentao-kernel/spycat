@@ -5,7 +5,7 @@ LIBBPF_DESTDIR = $(CURDIR)/lib/include
 .PHONY: $(LIBBPF_SRC)
 $(LIBBPF_SRC):
 	mkdir -p $(LIBBPF_DESTDIR)
-	test -d src || git clone http://github.com/libbpf/libbpf src
+	test -d src || git clone https://github.com/libbpf/libbpf src
 	cd src && git checkout $(LIBBPF_VERSION)
 
 # libbpf uapi
