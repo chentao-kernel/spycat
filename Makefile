@@ -32,9 +32,10 @@ EBPF_SRC := $(PWD)/pkg/ebpf
 APP_SRC := $(PWD)/cmd/spycat/main.go 
 LIBBPF_SRC := $(PWD)/lib/libbpf
 LIBBCC_SRC := $(PWD)/lib/bcc
-INCLUDE := -I$(PWD)/pkg/ebpf/headers
+VMLINUX := -I$(PWD)/pkg/ebpf/headers/$(ARCH)
+BPF_HEADER := -I$(PWD)/pkg/ebpf/headers
 
-CLANG_COMPILE := $(CLANG) $(CFLAGS) $(INCLUDE) -target bpf -D__TARGET_ARCH_$(ARCH) $(BPFAPI)
+CLANG_COMPILE := $(CLANG) $(CFLAGS) $(VMLINUX) $(BPF_HEADER) -target bpf -D__TARGET_ARCH_$(ARCH) $(BPFAPI)
 
 .PHONY: all generate
 
