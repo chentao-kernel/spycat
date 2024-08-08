@@ -172,7 +172,6 @@ static __always_inline void sched_cache_update(struct task_struct *p, u64 ts,
 	}
 }
 
-//__attribute__((noinline)) static void update_new_task_info(u64 ts, u32 cpu, struct task_struct *task)
 static void update_new_task_info(u64 ts, u32 cpu, struct task_struct *task)
 {
 	struct trace_event_t event = { 0 };
@@ -223,15 +222,14 @@ int sched_switch_hook(struct pt_regs *ctx)
 	/* record prev task info */
 	if (is_target_task(prev_pid.tgid, prev_pid.pid)) {
 		ep = bpf_map_lookup_elem(&start, &prev_pid.pid);
-		if (!ep) {
+		if (!ep)
 			update_new_task_info(curr_ts, cpu_id, pre_task);
-			return 0;
+		else {
+			ep->target.offcpu_ns = curr_ts;
+			ep->target.offcpu_id = cpu_id;
+			ep->target.run_delay_ns =
+				BPF_CORE_READ(pre_task, sched_info.run_delay);
 		}
-		ep->target.offcpu_ns = curr_ts;
-		ep->target.offcpu_id = cpu_id;
-		ep->target.run_delay_ns =
-			BPF_CORE_READ(pre_task, sched_info.run_delay);
-		return 0;
 	}
 
 	/* record current task info */
