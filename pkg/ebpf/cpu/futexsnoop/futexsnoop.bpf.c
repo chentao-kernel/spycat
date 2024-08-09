@@ -195,6 +195,7 @@ int futex_exit(struct syscall_trace_exit *ctx)
 	__sync_fetch_and_add(&histp->slots[slot], 1);
 	__sync_fetch_and_add(&histp->contended, 1);
 	__sync_fetch_and_add(&histp->total_elapsed, delta);
+#ifdef __TARGET_ARCH_amd64
 	min = __sync_fetch_and_add(&histp->min_dur, 0);
 	if (!min || min > delta)
 		__sync_val_compare_and_swap(&histp->min_dur, min, delta);
@@ -203,6 +204,17 @@ int futex_exit(struct syscall_trace_exit *ctx)
 		__sync_val_compare_and_swap(&histp->max_dur, max, delta);
 		histp->max_dur_ts = ts;
 	}
+#else
+	/* arm64 not support automic instruction like: __sync_val_compare_and_swap in kernel-5.15 */
+	min = histp->min_dur;
+	if (!min || min > delta)
+		histp->min_dur = delta;
+	max = histp->max_dur;
+	if (max < delta) {
+		histp->max_dur = max;
+		histp->max_dur_ts = ts;
+	}
+#endif
 	avg = histp->total_elapsed / histp->contended;
 	bpf_get_current_comm(&histp->comm, sizeof(histp->comm));
 	if (delta > args->min_dur_ms && delta < args->max_dur_ms &&
