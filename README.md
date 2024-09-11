@@ -98,6 +98,10 @@ FLAGS                     DEFAULT VALUES
 ### How to develop
 ## License
 spycat is distributed under [Apache License, Version2.0]
-## Thanks
-* Kindling Pyroscope libbpf bcc
+## Acknowledgements
+This project makes use of the following open source projrces:
+- [kindling](https://github.com/KindlingProject/kindling) Under the Apache License 2.0
+- [pyroscope](https://github.com/grafana/pyroscope) Under the Apache License 3.0
+- [libbpfgo](https://github.com/aquasecurity/libbpfgo) Under the Apache License 2.0
+- [bcc](https://github.com/iovisor/bcc) Under the Apache License 2.0
 * ...
