@@ -1,6 +1,8 @@
 #!/bin/bash
 
 #refrence:https://www.kancloud.cn/woshigrey/docker/935037
+# run arm docker on x86 host
+# docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
 read -r -d '' USAGE << EOF || true
 usage: ./build.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver -p|--proxy]
