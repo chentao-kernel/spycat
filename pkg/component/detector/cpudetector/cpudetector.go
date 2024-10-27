@@ -13,6 +13,7 @@ import (
 	"github.com/chentao-kernel/spycat/pkg/component/detector/cpudetector/upstream/remote"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
 	"github.com/chentao-kernel/spycat/pkg/log"
+	"github.com/chentao-kernel/spycat/pkg/util"
 	"github.com/chentao-kernel/spycat/pkg/util/alignedticker"
 	"github.com/chentao-kernel/spycat/pkg/util/trie"
 
@@ -303,7 +304,8 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 		userAttributes := e.UserAttributes[i]
 		switch {
 		case userAttributes.GetKey() == "t_start_time":
-			labels.AddIntValue(model.StartTime, int64(userAttributes.GetUintValue()))
+			startTime := util.BootOffsetToTime(uint64(userAttributes.GetUintValue()))
+			labels.AddStringValue(model.StartTime, startTime.Format("2006-01-02 15:04:05.000"))
 		case userAttributes.GetKey() == "cpu":
 			labels.AddIntValue(model.Cpu, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "prio":
@@ -311,9 +313,11 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 		case userAttributes.GetKey() == "cache_id":
 			labels.AddIntValue(model.CacheId, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "t_end_time":
-			labels.AddIntValue(model.EndTime, int64(userAttributes.GetUintValue()))
+			endTime := util.BootOffsetToTime(uint64(userAttributes.GetUintValue()))
+			labels.AddStringValue(model.EndTime, endTime.Format("2006-01-02 15:04:05.000"))
 		case userAttributes.GetKey() == "ts":
-			labels.AddIntValue(model.TimeStamp, int64(userAttributes.GetUintValue()))
+			ts := util.BootOffsetToTime(uint64(userAttributes.GetUintValue()))
+			labels.AddStringValue(model.TimeStamp, ts.Format("2006-01-02 15:04:05.000"))
 		case userAttributes.GetKey() == "dur_ms":
 			labels.AddIntValue(model.DurMs, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "rq_dur_ms":
@@ -368,7 +372,7 @@ func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error)
 	labels, _ := c.formatOffcpuLabels(e)
 	// util.PrintStructFields(*ev)
 	// c.PutEventToSegments(e.GetPid(), e.GetTid(), e.GetComm(), ev)
-	val := e.GetUintUserAttribute("t_offcpu_oncpu")
+	val := e.GetUintUserAttribute("dur_ms")
 	metric := model.NewIntMetric(model.OffCpuMetricName, int64(val))
 	return model.NewDataBlock(model.OffCpu, labels, e.TimeStamp, metric), nil
 }
