@@ -100,6 +100,14 @@ lint-check:
 	echo "Linting golang code..."
 	$(REVIVE) -config .revive.toml ./...
 
+.PHONY: gofmt-check
+gofmt-check:
+	gofmt -s -d .
+
+.PHONY: gofmt-fix
+gofmt-fix:
+	gofmt -s -w .
+
 clean:
 	find . -name "*.o" | xargs rm -f
 	make -C $(LIBBPF_SRC) clean
