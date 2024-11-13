@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-        "time"
+	"time"
 
-        "golang.org/x/sys/unix"
+	"golang.org/x/sys/unix"
 
 	"github.com/chentao-kernel/spycat/pkg/log"
 )
@@ -179,69 +179,69 @@ func KprobeExists(name string) bool {
 
 // copy from opentelemetry-go
 func estimateBootTimeOffset() (bootTimeOffset int64, err error) {
-        // The datapath is currently using ktime_get_boot_ns for the pcap timestamp,
-        // which corresponds to CLOCK_BOOTTIME. To be able to convert the the
-        // CLOCK_BOOTTIME to CLOCK_REALTIME (i.e. a unix timestamp).
+	// The datapath is currently using ktime_get_boot_ns for the pcap timestamp,
+	// which corresponds to CLOCK_BOOTTIME. To be able to convert the the
+	// CLOCK_BOOTTIME to CLOCK_REALTIME (i.e. a unix timestamp).
 
-        // There can be an arbitrary amount of time between the execution of
-        // time.Now() and unix.ClockGettime() below, especially under scheduler
-        // pressure during program startup. To reduce the error introduced by these
-        // delays, we pin the current Go routine to its OS thread and measure the
-        // clocks multiple times, taking only the smallest observed difference
-        // between the two values (which implies the smallest possible delay
-        // between the two snapshots).
-        var minDiff int64 = 1<<63 - 1
-        estimationRounds := 25
-        runtime.LockOSThread()
-        defer runtime.UnlockOSThread()
-        for round := 0; round < estimationRounds; round++ {
-                var bootTimespec unix.Timespec
+	// There can be an arbitrary amount of time between the execution of
+	// time.Now() and unix.ClockGettime() below, especially under scheduler
+	// pressure during program startup. To reduce the error introduced by these
+	// delays, we pin the current Go routine to its OS thread and measure the
+	// clocks multiple times, taking only the smallest observed difference
+	// between the two values (which implies the smallest possible delay
+	// between the two snapshots).
+	var minDiff int64 = 1<<63 - 1
+	estimationRounds := 25
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	for round := 0; round < estimationRounds; round++ {
+		var bootTimespec unix.Timespec
 
-                // Ideally we would use __vdso_clock_gettime for both clocks here,
-                // to have as little overhead as possible.
-                // time.Now() will actually use VDSO on Go 1.9+, but calling
-                // unix.ClockGettime to obtain CLOCK_BOOTTIME is a regular system call
-                // for now.
-                unixTime := time.Now()
-                err = unix.ClockGettime(unix.CLOCK_BOOTTIME, &bootTimespec)
-                if err != nil {
-                        return 0, err
-                }
+		// Ideally we would use __vdso_clock_gettime for both clocks here,
+		// to have as little overhead as possible.
+		// time.Now() will actually use VDSO on Go 1.9+, but calling
+		// unix.ClockGettime to obtain CLOCK_BOOTTIME is a regular system call
+		// for now.
+		unixTime := time.Now()
+		err = unix.ClockGettime(unix.CLOCK_BOOTTIME, &bootTimespec)
+		if err != nil {
+			return 0, err
+		}
 
-                offset := unixTime.UnixNano() - bootTimespec.Nano()
-                diff := offset
-                if diff < 0 {
-                        diff = -diff
-                }
+		offset := unixTime.UnixNano() - bootTimespec.Nano()
+		diff := offset
+		if diff < 0 {
+			diff = -diff
+		}
 
-                if diff < minDiff {
-                        minDiff = diff
-                        bootTimeOffset = offset
-                }
-        }
+		if diff < minDiff {
+			minDiff = diff
+			bootTimeOffset = offset
+		}
+	}
 
-        return bootTimeOffset, nil
+	return bootTimeOffset, nil
 }
 
 func bootTimeOffset() int64 {
-        t, err := estimateBootTimeOffset()
-        if err != nil {
-                panic(err)
-        }
-        return t
+	t, err := estimateBootTimeOffset()
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 func BootOffsetToTime(nsec uint64) time.Time {
-        if nsec > math.MaxInt64 {
-                nsec = math.MaxInt64
-        }
-        return time.Unix(0, bootTimeOffset() + int64(nsec))
+	if nsec > math.MaxInt64 {
+		nsec = math.MaxInt64
+	}
+	return time.Unix(0, bootTimeOffset()+int64(nsec))
 }
 
 func TimeToBootOffset(ts time.Time) uint64 {
-        nsec := ts.UnixNano() - bootTimeOffset()
-        if nsec < 0 {
-                return 0
-        }
-        return uint64(nsec)
+	nsec := ts.UnixNano() - bootTimeOffset()
+	if nsec < 0 {
+		return 0
+	}
+	return uint64(nsec)
 }
