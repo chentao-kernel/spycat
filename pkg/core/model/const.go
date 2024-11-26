@@ -15,6 +15,7 @@ const (
 	OnCpu      = "oncpu"
 	FutexSnoop = "futexsnoop"
 	Syscall    = "syscall"
+	CacheStat  = "cachestat"
 	OtherEvent = "other_event"
 )
 
@@ -22,6 +23,7 @@ const (
 const (
 	OffCpuMetricName     = "offcpu_dur_ms"
 	FutexMaxUerCountName = "max_futex_user_cnt"
+	CacheStatMetricName  = "cachestat_read_size"
 )
 
 // for labels
@@ -73,6 +75,11 @@ const (
 	// for syscall
 	DurMs = "dur_ms"
 	DurUs = "dur_us"
+
+	// for cachestat
+	ReadSizeM  = "read_size_m"
+	WriteSizeM = "write_size_m"
+	File       = "file"
 )
 
 const (
