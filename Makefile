@@ -41,8 +41,8 @@ CLANG_COMPILE := $(CLANG) $(CFLAGS) $(VMLINUX) $(BPF_HEADER) -target bpf -D__TAR
 
 generate: export BPF_CLANG := $(CLANG)
 generate: export BPF_CFLAGS := $(CFLAGS)
-generate:
-	go generate $(EBPF_SRC)/uprobe/uprobe.go
+#generate:
+#	go generate $(EBPF_SRC)/uprobe/uprobe.go
 
 libbpf:
 	make -C $(LIBBPF_SRC) libbpf
@@ -53,6 +53,7 @@ ebpf.o: libbpf
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.c -o $(EBPF_SRC)/cpu/oncpu/oncpu.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.c -o $(EBPF_SRC)/cpu/futexsnoop/futexsnoop.bpf.o
 	$(CLANG_COMPILE) -c $(EBPF_SRC)/cpu/syscall/syscall.bpf.c -o $(EBPF_SRC)/cpu/syscall/syscall.bpf.o
+	$(CLANG_COMPILE) -c $(EBPF_SRC)/mem/cachestat/cachestat.bpf.c -o $(EBPF_SRC)/mem/cachestat/cachestat.bpf.o
 
 all: generate ebpf.o
 	@echo "go build $(TARGET)"

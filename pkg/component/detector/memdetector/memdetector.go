@@ -45,6 +45,7 @@ func (mem *MemDetector) Start() error {
 }
 
 func (mem *MemDetector) Stop() error {
+	close(mem.stopChan)
 	return nil
 }
 
@@ -52,7 +53,55 @@ func (mem *MemDetector) Name() string {
 	return DetectorMemType
 }
 
+func (mem *MemDetector) formatCacheStat(e *model.SpyEvent) (*model.AttributeMap, error) {
+	labels := model.NewAttributeMap()
+	for i := 0; i < int(e.ParamsCnt); i++ {
+		userAttributes := e.UserAttributes[i]
+		switch {
+		case userAttributes.GetKey() == "read_size_m":
+			labels.AddIntValue(model.ReadSizeM, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "write_size_m":
+			labels.AddIntValue(model.WriteSizeM, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "pid":
+			labels.AddIntValue(model.Pid, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "comm":
+			labels.AddStringValue(model.Comm, string(userAttributes.GetValue()))
+		case userAttributes.GetKey() == "file":
+			labels.AddStringValue(model.File, string(userAttributes.GetValue()))
+		}
+	}
+	return labels, nil
+}
+
+func (mem *MemDetector) cachestatHandler(e *model.SpyEvent) (*model.DataBlock, error) {
+	labels, _ := mem.formatCacheStat(e)
+	val := e.GetUintUserAttribute("write_size")
+	metric := model.NewIntMetric(model.CacheStatMetricName, int64(val))
+	return model.NewDataBlock(model.CacheStat, labels, e.TimeStamp, metric), nil
+}
 func (mem *MemDetector) ProcessEvent(e *model.SpyEvent) error {
+	var dataBlock *model.DataBlock
+	var err error
+	switch e.Name {
+	case model.CacheStat:
+		dataBlock, err = mem.cachestatHandler(e)
+	default:
+		return nil
+	}
+	if err != nil {
+		return nil
+	}
+	if dataBlock == nil {
+		return nil
+	}
+	// next consumer is default processor
+	for _, con := range mem.consumers {
+		err := con.Consume(dataBlock)
+		if err != nil {
+			log.Loger.Error("consumer consume event failed:%v", err)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -72,11 +121,12 @@ func (mem *MemDetector) ConsumeChanEvents() {
 }
 
 // 公共接口
-func (mem *MemDetector) ConsumeEvent(*model.SpyEvent) error {
+func (mem *MemDetector) ConsumeEvent(e *model.SpyEvent) error {
+	mem.eventChan <- e
 	return nil
 }
 
 // hard code
 func (mem *MemDetector) OwnedEvents() []string {
-	return []string{}
+	return []string{model.CacheStat}
 }

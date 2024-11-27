@@ -14,6 +14,7 @@ import (
 	"github.com/chentao-kernel/spycat/pkg/core"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
 	"github.com/chentao-kernel/spycat/pkg/ebpf/cpu"
+	"github.com/chentao-kernel/spycat/pkg/ebpf/mem"
 	"github.com/chentao-kernel/spycat/pkg/log"
 	"github.com/fatih/color"
 	"github.com/pyroscope-io/pyroscope/pkg/cli"
@@ -63,6 +64,7 @@ func SubCmdInit(cmd *Cmd) {
 		newOnCpuSpyCmd(&cmd.cfg.ONCPU),
 		newFutexSnoopSpyCmd(&cmd.cfg.FUTEXSNOOP),
 		newSyscallSpyCmd(&cmd.cfg.SYSCALL),
+		newCacheStatSpyCmd(&cmd.cfg.CACHESTAT),
 		newVersionCmd(),
 	}
 
@@ -225,6 +227,33 @@ func newSyscallSpyCmd(cfg *config.SYSCALL) *cobra.Command {
 				config, ok := cfg.(*config.SYSCALL)
 				if ok {
 					return cpu.NewSyscallSession(model.Syscall, config, buf)
+				}
+				return nil
+			})
+		}),
+	}
+
+	cli.PopulateFlagSet(cfg, connectCmd.Flags(), vpr)
+	return connectCmd
+}
+
+func newCacheStatSpyCmd(cfg *config.CACHESTAT) *cobra.Command {
+	vpr := newViper()
+
+	connectCmd := &cobra.Command{
+		Use:   "cachestat [flags]",
+		Short: "eBPF snoop cachestat",
+		Args:  cobra.NoArgs,
+
+		RunE: cli.CreateCmdRunFn(cfg, vpr, func(_ *cobra.Command, _ []string) error {
+			conf := &appspy.Config{
+				Exporter: cfg.Exporter,
+				Server:   cfg.Server,
+			}
+			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
+				config, ok := cfg.(*config.CACHESTAT)
+				if ok {
+					return mem.NewCacheStatBpfSession(model.CacheStat, config, buf)
 				}
 				return nil
 			})
