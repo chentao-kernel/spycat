@@ -40,13 +40,18 @@ int vfs_write_hook(struct pt_regs *ctx)
 	struct user_args *args = NULL;
 	int count, index = 0;
 	u64 pid_tgid = bpf_get_current_pid_tgid();
+	u32 cpu = bpf_get_smp_processor_id();
 	key.pid = pid_tgid >> 32;
+
 	args = bpf_map_lookup_elem(&args_map, &index);
 	if (!args)
 		return 0;
 	if (args->pid != -1 && args->pid != key.pid) {
 		return 0;
 	}
+	if (args->cpu != -1 && args->cpu != cpu)
+		return 0;
+
 	if (args->cache_type == READ_CACHE)
 		return 0;
 
@@ -59,6 +64,8 @@ int vfs_write_hook(struct pt_regs *ctx)
 	info = bpf_map_lookup_elem(&cachestat_map, &key);
 	if (!info) {
 		cache_info.pid = key.pid;
+		cache_info.cpu = cpu;
+		cache_info.cnt = 1;
 		bpf_get_current_comm(cache_info.comm, sizeof(cache_info.comm));
 		if (dn.name != NULL)
 			bpf_core_read(&cache_info.file, sizeof(cache_info.file),
@@ -69,7 +76,9 @@ int vfs_write_hook(struct pt_regs *ctx)
 		bpf_map_update_elem(&cachestat_map, &key, &cache_info, 0);
 		return 0;
 	}
+	info->cpu = cpu;
 	info->write_size = info->write_size + count;
+	info->cnt++;
 	return 0;
 }
 
@@ -85,12 +94,15 @@ int vfs_read_hook(struct pt_regs *ctx)
 	struct user_args *args = NULL;
 	int count, index = 0;
 	u64 pid_tgid = bpf_get_current_pid_tgid();
+	u32 cpu = bpf_get_smp_processor_id();
 	key.pid = pid_tgid >> 32;
 
 	args = bpf_map_lookup_elem(&args_map, &index);
 	if (!args)
 		return 0;
 	if (args->pid != -1 && args->pid != key.pid)
+		return 0;
+	if (args->cpu != -1 && args->cpu != cpu)
 		return 0;
 	if (args->cache_type == WRITE_CACHE)
 		return 0;
@@ -104,6 +116,8 @@ int vfs_read_hook(struct pt_regs *ctx)
 	info = bpf_map_lookup_elem(&cachestat_map, &key);
 	if (!info) {
 		cache_info.pid = key.pid;
+		cache_info.cpu = cpu;
+		cache_info.cnt = 1;
 		bpf_get_current_comm(cache_info.comm, sizeof(cache_info.comm));
 		if (dn.name != NULL)
 			bpf_core_read(&cache_info.file, sizeof(cache_info.file),
@@ -114,7 +128,9 @@ int vfs_read_hook(struct pt_regs *ctx)
 		bpf_map_update_elem(&cachestat_map, &key, &cache_info, 0);
 		return 0;
 	}
+	info->cpu = cpu;
 	info->read_size = info->read_size + count;
+	info->cnt++;
 
 	return 0;
 }

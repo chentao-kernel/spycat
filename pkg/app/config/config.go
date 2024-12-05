@@ -85,6 +85,7 @@ type CACHESTAT struct {
 	UploadRate time.Duration `def:"30s" desc:"upload for the cachestat data. 30 means 30s upload the trace data from kernel" mapstructure:"upload-rate"`
 	Pid        int           `def:"-1" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
 	CacheType  int           `def:"0" desc:"cache type to trace, 0:read/write cache, 1:read cache, 2:write cache" mapstructure:"cache-type"`
+	Cpu        int           `def:"-1" desc:"target cpu to trace. -1 to trace all cpus" mapstructure:"cpu"`
 	BtfPath    string        `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter   string        `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }

@@ -80,6 +80,7 @@ const (
 	ReadSizeM  = "read_size_m"
 	WriteSizeM = "write_size_m"
 	File       = "file"
+	Count      = "count"
 )
 
 const (

@@ -31,6 +31,8 @@ typedef __u64 u64;
 struct user_args {
 	__u32 pid;
 	__u32 cache_type;
+	__u32 cpu;
+	__u32 pad;
 };
 
 enum CACHE_TYPE {
@@ -45,11 +47,12 @@ struct cache_key {
 
 struct cache_info {
 	__u32 pid;
-	__u32 pad;
+	__u32 cpu;
 	char comm[TASK_COMM_LEN];
 	char file[CACHE_FILE_SIZE];
 	__u64 read_size;
 	__u64 write_size;
+	__u64 cnt;
 };
 
 #endif // !__CACHESTAT_H
