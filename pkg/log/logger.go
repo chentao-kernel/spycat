@@ -15,7 +15,7 @@ import (
 var Loger *Logger
 
 const (
-	PATH = "/tmp/spycat"
+	PATH = "/var/log/spycat"
 )
 
 type Logger struct {

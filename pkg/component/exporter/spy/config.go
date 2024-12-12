@@ -12,6 +12,6 @@ type FileConfig struct {
 func NewConfig() *Config {
 	return &Config{
 		OutPuter:     "FileOutputer",
-		BaseFilePath: "/tmp/spycat",
+		BaseFilePath: "/var/log/spycat",
 	}
 }
