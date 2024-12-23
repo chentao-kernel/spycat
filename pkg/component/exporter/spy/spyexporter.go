@@ -28,8 +28,8 @@ func NewSpyExporter(config interface{}) exporter.Exporter {
 		_, err := os.Stat(cfg.BaseFilePath)
 		if err != nil {
 			log.Loger.Error("file output path not exist:%s, err:%v, use default path:%s",
-				cfg.BaseFilePath, err, "/var/log")
-			cfg.BaseFilePath = "/var/log"
+				cfg.BaseFilePath, err, "/tmp")
+			cfg.BaseFilePath = "/tmp"
 		}
 		outer = &FileOutputer{
 			Name: cfg.OutPuter,
