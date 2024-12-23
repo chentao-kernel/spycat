@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,6 +10,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/chentao-kernel/spycat/pkg/app"
+	"github.com/chentao-kernel/spycat/pkg/config"
 	"github.com/chentao-kernel/spycat/pkg/log"
 )
 
@@ -29,6 +31,14 @@ func waitSignal(sigCh chan os.Signal) {
 }
 
 func main() {
+	// init config
+	err := config.ConfigInit()
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	// init log
+	log.LogInit()
+
 	sigCh := make(chan os.Signal, 1)
 	if os.Getenv("ENABLE_SPYCAT_PPROF") == "true" {
 		go func() {

@@ -15,7 +15,7 @@ type Config struct {
 }
 
 type FUTEXSNOOP struct {
-	LogLevel         string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel         string `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 	AppName          string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	Server           string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid              int    `def:"0" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
@@ -25,13 +25,13 @@ type FUTEXSNOOP struct {
 	SymbolCacheSize  int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
 	MaxLockHoldUsers uint   `def:"100" desc:"max users hold the same lock" mapstructure:"max-lock-hold-users"`
 	TargetLock       uint   `def:"0" desc:"target lock addr" mapstructure:"target-lock"`
-	Stack            bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
+	Stack            bool   `def:"false" desc:"get stack INFO or not" mapstructure:"stack"`
 	BtfPath          string `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter         string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type SYSCALL struct {
-	LogLevel        string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel        string `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 	AppName         string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid             int    `def:"0" desc:"pid to trace, 0 to trace all pids" mapstructure:"pid"`
@@ -40,13 +40,13 @@ type SYSCALL struct {
 	MinDurMs        uint   `def:"1" desc:"min time(ms) syscall used" mapstructure:"min_dur_ms"`
 	Syscall         string `def:"" desc:"set syscall to filter event" mapstructure:"syscall"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol-cache-size"`
-	Stack           bool   `def:"false" desc:"get stack info or not" mapstructure:"stack"`
+	Stack           bool   `def:"false" desc:"get stack INFO or not" mapstructure:"stack"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
 	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
 }
 
 type OFFCPU struct {
-	LogLevel        string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel        string `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 	AppName         string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	Server          string `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	Pid             int    `def:"-1" desc:"pid to trace, -1 to trace all pids" mapstructure:"pid"`
@@ -59,7 +59,7 @@ type OFFCPU struct {
 }
 
 type ONCPU struct {
-	LogLevel string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel string `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 	// Spy configuration
 	AppName    string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	SampleRate uint   `def:"100" desc:"sample rate for the profiler in Hz. 100 means reading 100 times per second" mapstructure:"sample-rate"`
@@ -79,7 +79,7 @@ type ONCPU struct {
 }
 
 type CACHESTAT struct {
-	LogLevel   string        `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel   string        `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 	AppName    string        `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
 	Server     string        `def:"http://localhost:4040" desc:"the server address" mapstructure:"server"`
 	UploadRate time.Duration `def:"30s" desc:"upload for the cachestat data. 30 means 30s upload the trace data from kernel" mapstructure:"upload-rate"`
@@ -91,7 +91,7 @@ type CACHESTAT struct {
 }
 
 type NET struct {
-	LogLevel string `def:"info" desc:"log level: debug|info|warn|error" mapstructure:"log-level"`
+	LogLevel string `def:"INFO" desc:"log level: DEBUG|INFO|WARN|ERROR" mapstructure:"log-level"`
 
 	// Spy configuration
 	AppName    string `def:"" desc:"application name used when uploading profiling data" mapstructure:"app-name"`
