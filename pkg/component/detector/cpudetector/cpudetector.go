@@ -312,9 +312,6 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 			labels.AddIntValue(model.Prio, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "cache_id":
 			labels.AddIntValue(model.CacheId, int64(userAttributes.GetUintValue()))
-		case userAttributes.GetKey() == "t_end_time":
-			endTime := util.BootOffsetToTime(uint64(userAttributes.GetUintValue()))
-			labels.AddStringValue(model.EndTime, endTime.Format("2006-01-02 15:04:05.000"))
 		case userAttributes.GetKey() == "ts":
 			ts := util.BootOffsetToTime(uint64(userAttributes.GetUintValue()))
 			labels.AddStringValue(model.TimeStamp, ts.Format("2006-01-02 15:04:05.000"))
@@ -329,10 +326,6 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 		case userAttributes.GetKey() == "w_pid":
 			labels.AddIntValue(model.Pid_W, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "w_stack":
-			labels.AddStringValue(model.Stack_W, string(userAttributes.GetValue()))
-		case userAttributes.GetKey() == "w_onrq_oncpu":
-			labels.AddIntValue(model.RunqLatUs_W, int64(userAttributes.GetUintValue()/1000))
-		case userAttributes.GetKey() == "w_offcpu_oncpu":
 			labels.AddIntValue(model.CpuOffUs_W, int64(userAttributes.GetUintValue()/1000))
 		case userAttributes.GetKey() == "t_comm":
 			labels.AddStringValue(model.Wakee, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))

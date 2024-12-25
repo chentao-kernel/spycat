@@ -367,9 +367,11 @@ func (b *OffcpuSession) HandleEvent(data []byte) {
 	spyEvent.SetUserAttributeWithUint32("t_offcpu_oncpu", uint32(event.Target.Oncpu_ns-event.Target.Offcpu_ns))
 	spyEvent.SetUserAttributeWithByteBuf("t_comm", event.Target.Comm[:])
 	spyEvent.SetUserAttributeWithUint64("t_start_time", event.Target.Offcpu_ns)
-	spyEvent.SetUserAttributeWithUint64("t_end_time", event.Target.Oncpu_ns)
+	// perf event output time
 	spyEvent.SetUserAttributeWithUint64("ts", event.Ts_ns)
+	// target offcpu dur
 	spyEvent.SetUserAttributeWithUint64("dur_ms", event.Dur_ms)
+	// target on rq dur
 	spyEvent.SetUserAttributeWithUint64("rq_dur_ms", event.Rq_dur_ms)
 
 	syms.Reset()
