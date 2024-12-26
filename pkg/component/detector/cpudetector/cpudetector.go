@@ -326,7 +326,7 @@ func (c *CpuDetector) formatOffcpuLabels(e *model.SpyEvent) (*model.AttributeMap
 		case userAttributes.GetKey() == "w_pid":
 			labels.AddIntValue(model.Pid_W, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "w_stack":
-			labels.AddIntValue(model.CpuOffUs_W, int64(userAttributes.GetUintValue()/1000))
+			labels.AddStringValue(model.Stack_W, string(userAttributes.GetValue()))
 		case userAttributes.GetKey() == "t_comm":
 			labels.AddStringValue(model.Wakee, strings.Replace(string(userAttributes.GetValue()), "\u0000", "", -1))
 		case userAttributes.GetKey() == "t_tid":
@@ -373,7 +373,7 @@ func (c *CpuDetector) offcpuHandler(e *model.SpyEvent) (*model.DataBlock, error)
 func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, uint64) error) (*model.DataBlock, error) {
 	var count uint64
 	var stack []byte
-
+	labels := model.NewAttributeMap()
 	c.trieLock.Lock()
 	defer c.trieLock.Unlock()
 	for i := 0; i < int(e.ParamsCnt); i++ {
@@ -381,15 +381,21 @@ func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, ui
 		switch {
 		case userAttributes.GetKey() == "count":
 			count = userAttributes.GetUintValue()
+			labels.AddIntValue(model.Count, int64(count))
 		case userAttributes.GetKey() == "stack":
 			stack = userAttributes.GetValue()
+			labels.AddStringValue(model.Stack, string(stack))
 		case userAttributes.GetKey() == "sampleRate":
 			c.sampleRate = uint32(userAttributes.GetUintValue())
 		}
 	}
 	cb(e.Name, stack, count)
+	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddIntValue(model.Tid, int64(e.Task.Tid))
+	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
+	metric := model.NewIntMetric(model.OnCpuMetricName, int64(count))
 	// fmt.Printf("pid:%d, comm:%s, count:%d, stack:%s", pid, comm, count, stack)
-	return nil, nil
+	return model.NewDataBlock(model.OnCpu, labels, e.TimeStamp, metric), nil
 }
 
 // called by receiver

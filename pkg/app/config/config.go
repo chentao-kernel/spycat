@@ -12,12 +12,6 @@ type Config struct {
 	FUTEXSNOOP FUTEXSNOOP `skip:"true" mapstructure:",squash"`
 	SYSCALL    SYSCALL    `skip:"true" mapstructure:",squash"`
 	CACHESTAT  CACHESTAT  `skip:"true" mapstructure:",squash"`
-
-	ONCPU_YAML      ONCPU_YAML
-	OFFCPU_YAML     OFFCPU_YAML
-	FUTEXSNOOP_YAML FUTEXSNOOP_YAML
-	SYSCALL_YAML    SYSCALL_YAML
-	CACHESTAT_YAML  CACHESTAT_YAML
 }
 
 type FUTEXSNOOP struct {
@@ -33,7 +27,7 @@ type FUTEXSNOOP struct {
 	TargetLock       uint   `def:"0" desc:"target lock addr" mapstructure:"target-lock"`
 	Stack            bool   `def:"false" desc:"get stack INFO or not" mapstructure:"stack"`
 	BtfPath          string `def:"" desc:"btf file path" mapstructure:"btf-path"`
-	Exporter         string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+	Exporter         string `def:"" desc:"data exporter: loki,pyroscoe,sqlite,prometheus,disk,etc." mapstructure:"exporter"`
 	Status           string
 }
 
@@ -65,7 +59,7 @@ type SYSCALL struct {
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol_cache_size"`
 	Stack           bool   `def:"false" desc:"get stack INFO or not" mapstructure:"stack"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
-	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,sqlite,prometheus,disk,etc." mapstructure:"exporter"`
 	Status          string
 }
 
@@ -98,7 +92,7 @@ type OFFCPU struct {
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol_cache_size"`
 	RqDurMs         uint   `def:"0" desc:"min onrq ms" mapstructure:"rq_dur"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf_path"`
-	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,sqlite,prometheus,disk,etc." mapstructure:"exporter"`
 	Status          string
 }
 
@@ -133,7 +127,7 @@ type ONCPU struct {
 	// DetectSubprocesses bool   `def:"false" desc:"makes keep track of and profile subprocesses of the main process" mapstructure:"detect-subprocesses"`
 	SymbolCacheSize int    `def:"256" desc:"max size of symbols cache" mapstructure:"symbol_cache_size"`
 	BtfPath         string `def:"" desc:"btf file path" mapstructure:"btf-path"`
-	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+	Exporter        string `def:"" desc:"data exporter: loki,pyroscoe,sqlite,prometheus,disk,etc." mapstructure:"exporter"`
 	Status          string
 }
 
@@ -161,7 +155,7 @@ type CACHESTAT struct {
 	CacheType  int           `def:"0" desc:"cache type to trace, 0:read/write cache, 1:read cache, 2:write cache" mapstructure:"cache_type"`
 	Cpu        int           `def:"-1" desc:"target cpu to trace. -1 to trace all cpus" mapstructure:"cpu"`
 	BtfPath    string        `def:"" desc:"btf file path" mapstructure:"btf_path"`
-	Exporter   string        `def:"" desc:"data exporter: loki,pyroscoe,prometheus,disk,etc." mapstructure:"exporter"`
+	Exporter   string        `def:"" desc:"data exporter: loki,pyroscoe,sqlite,prometheus,disk,etc." mapstructure:"exporter"`
 	Status     string
 }
 
