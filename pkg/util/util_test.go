@@ -3,10 +3,15 @@ package util
 import (
 	"bufio"
 	"fmt"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"os/exec"
 	"strings"
 	"testing"
 )
+
+func init() {
+	log.LogInit()
+}
 
 func TestKprobeExists(t *testing.T) {
 	want := false

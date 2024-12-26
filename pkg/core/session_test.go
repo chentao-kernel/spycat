@@ -2,8 +2,13 @@ package core
 
 import (
 	"fmt"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"testing"
 )
+
+func init() {
+	log.LogInit()
+}
 
 type SessionTest struct {
 	Name string
