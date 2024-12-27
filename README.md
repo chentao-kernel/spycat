@@ -15,6 +15,7 @@ new feature added.
 * [Compoents](#Components)
 * [Feature](#Feature)
 * [Quick Start](#Quick-Start)
+* [OS Support](#OS-Support)
 * [License](#License)
 * [Thanks](#Thanks)
 
@@ -96,6 +97,22 @@ FLAGS                     DEFAULT VALUES
     tid to trace, -1 to trace all tids
 ```
 ### How to develop
+## Os Support
+#### x86
+| OS     | version |
+|--------------|------------|
+|Ubuntu|18.04,20.04,22.04,24.04|
+|Centos|centos8|
+|OpenEuler||
+|Anolis||
+
+#### arm64
+| OS     | version |
+|--------------|------------|
+|Ubuntu|18.04,20.04,22.04,24.04|
+|Centos||
+|OpenEuler||
+|Anolis||
 ## License
 spycat is distributed under [Apache License, Version2.0]
 ## Acknowledgements
