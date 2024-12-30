@@ -26,6 +26,7 @@ const (
 	FutexMaxUerCountName = "max_futex_user_cnt"
 	CacheStatMetricName  = "cachestat_read_size"
 	OnCpuMetricName      = "oncpu_hit_count"
+	SyscallMetricName    = "syscall_dur_us"
 )
 
 // for labels

@@ -40,6 +40,9 @@ func NewSqliteExporter(cfg interface{}) *SqliteExporter {
 	// migrate table
 	server.DB.AutoMigrate(&OFFCPU{})
 	server.DB.AutoMigrate(&ONCPU{})
+	server.DB.AutoMigrate(&SYSCALL{})
+	server.DB.AutoMigrate(&FUTEXSNOOP{})
+	server.DB.AutoMigrate(&CACHESTAT{})
 
 	go server.Run()
 
@@ -60,6 +63,10 @@ func (s *SqliteExporter) ShutDown() {
 func (s *SqliteExporter) Flush(batch []Item) {
 	var offcpus []OFFCPU
 	var oncpus []ONCPU
+	var syscalls []SYSCALL
+	var cachestats []CACHESTAT
+	var futexsnoops []FUTEXSNOOP
+	var table string
 
 	if batch == nil {
 		return
@@ -78,18 +85,59 @@ func (s *SqliteExporter) Flush(batch []Item) {
 				oncpus = append(oncpus, *oncpu)
 			}
 		}
+		if val.TableName() == "SYSCALL" {
+			syscall, ok := val.(*SYSCALL)
+			if ok {
+				syscalls = append(syscalls, *syscall)
+			}
+		}
+		if val.TableName() == "CACHESTAT" {
+			cachestat, ok := val.(*CACHESTAT)
+			if ok {
+				cachestats = append(cachestats, *cachestat)
+			}
+		}
+		if val.TableName() == "FUTEXSNOOP" {
+			futexsnoop, ok := val.(*FUTEXSNOOP)
+			if ok {
+				futexsnoops = append(futexsnoops, *futexsnoop)
+			}
+		}
 	}
 
 	if len(offcpus) > 0 {
-		result := s.DB.Table("OFFCPU").CreateInBatches(offcpus, batchCacheSize)
+		table = "OFFCPU"
+		result := s.DB.Table(table).CreateInBatches(offcpus, batchCacheSize)
 		if result.Error != nil {
-			log.Loger.Error("table:%s, sqlite flush failed:%v\n", "OFFCPU", result.Error)
+			log.Loger.Error("table:%s, sqlite flush failed:%v\n", table, result.Error)
 		}
 	}
 	if len(oncpus) > 0 {
-		result := s.DB.Table("ONCPU").CreateInBatches(oncpus, batchCacheSize)
+		table = "ONCPU"
+		result := s.DB.Table(table).CreateInBatches(oncpus, batchCacheSize)
 		if result.Error != nil {
-			log.Loger.Error("table:%s, sqlite flush failed:%v\n", "ONCPU", result.Error)
+			log.Loger.Error("table:%s, sqlite flush failed:%v\n", table, result.Error)
+		}
+	}
+	if len(syscalls) > 0 {
+		table = "SYSCALL"
+		result := s.DB.Table(table).CreateInBatches(syscalls, batchCacheSize)
+		if result.Error != nil {
+			log.Loger.Error("table:%s, sqlite flush failed:%v\n", table, result.Error)
+		}
+	}
+	if len(cachestats) > 0 {
+		table = "CACHESTAT"
+		result := s.DB.Table(table).CreateInBatches(cachestats, batchCacheSize)
+		if result.Error != nil {
+			log.Loger.Error("table:%s, sqlite flush failed:%v\n", table, result.Error)
+		}
+	}
+	if len(futexsnoops) > 0 {
+		table = "FUTEXSNOOP"
+		result := s.DB.Table(table).CreateInBatches(futexsnoops, batchCacheSize)
+		if result.Error != nil {
+			log.Loger.Error("table:%s, sqlite flush failed:%v\n", table, result.Error)
 		}
 	}
 
@@ -166,6 +214,39 @@ func (s *SqliteExporter) Consume(data *model.DataBlock) error {
 			Tid:   uint32(data.Labels.GetIntValue(model.Tid)),
 			Stack: data.Labels.GetStringValue(model.Stack),
 			Count: uint32(data.Labels.GetIntValue(model.Count)),
+		}
+	case model.Syscall:
+		im = &SYSCALL{
+			Comm:    data.Labels.GetStringValue(model.Comm),
+			Pid:     uint32(data.Labels.GetIntValue(model.Pid)),
+			Tid:     uint32(data.Labels.GetIntValue(model.Tid)),
+			Stack:   data.Labels.GetStringValue(model.Stack),
+			Syscall: data.Labels.GetStringValue(model.Syscall),
+			DurUs:   uint32(data.Labels.GetIntValue(model.DurUs)),
+		}
+	case model.FutexSnoop:
+		im = &FUTEXSNOOP{
+			Comm:       data.Labels.GetStringValue(model.Comm),
+			Pid:        uint32(data.Labels.GetIntValue(model.Pid)),
+			Tid:        uint32(data.Labels.GetIntValue(model.Tid)),
+			Stack:      data.Labels.GetStringValue(model.Stack),
+			UserCnt:    uint32(data.Labels.GetIntValue(model.UserCnt)),
+			MaxUserCnt: uint32(data.Labels.GetIntValue(model.MaxUserCnt)),
+			LockAddr:   int64(data.Labels.GetIntValue(model.LockAddr)),
+			MinDurUS:   uint32(data.Labels.GetIntValue(model.MinDur)),
+			MaxDurUs:   uint32(data.Labels.GetIntValue(model.MaxDur)),
+			AvgDurUs:   uint32(data.Labels.GetIntValue(model.AvgDur)),
+			DeltaDurUs: uint32(data.Labels.GetIntValue(model.DeltaDur)),
+			LockCnt:    uint32(data.Labels.GetIntValue(model.LockCnt)),
+		}
+	case model.CacheStat:
+		im = &CACHESTAT{
+			Comm:       data.Labels.GetStringValue(model.Comm),
+			Pid:        uint32(data.Labels.GetIntValue(model.Pid)),
+			Cpu:        uint32(data.Labels.GetIntValue(model.Cpu)),
+			ReadSizeM:  uint32(data.Labels.GetIntValue(model.ReadSizeM)),
+			WriteSizeM: uint32(data.Labels.GetIntValue(model.WriteSizeM)),
+			File:       data.Labels.GetStringValue(model.File),
 		}
 	}
 	s.datas <- im

@@ -295,6 +295,10 @@ func (c *CpuDetector) formatFutexSnoopLabels(e *model.SpyEvent) (*model.Attribut
 			labels.AddStringValue(model.Stack, string(userAttributes.GetValue()))
 		}
 	}
+	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
+	labels.AddIntValue(model.Tid, int64(e.Task.Tid))
+	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
+
 	return labels, nil
 }
 
@@ -356,8 +360,8 @@ func (c *CpuDetector) futexsnoopHandler(e *model.SpyEvent) (*model.DataBlock, er
 
 func (c *CpuDetector) syscallHandler(e *model.SpyEvent) (*model.DataBlock, error) {
 	labels, _ := c.formatSyscallLabels(e)
-	val := e.GetUintUserAttribute("dur_ms")
-	metric := model.NewIntMetric(model.Syscall, int64(val))
+	val := e.GetUintUserAttribute("dur_us")
+	metric := model.NewIntMetric(model.SyscallMetricName, int64(val))
 	return model.NewDataBlock(model.Syscall, labels, e.TimeStamp, metric), nil
 }
 
