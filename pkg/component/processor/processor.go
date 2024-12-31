@@ -77,7 +77,8 @@ func (d *DefaultAggregator) Dump() []*model.DataBlock {
 func NewDefaultProcessor(cfg any, con consumer.Consumer) Processor {
 	config, _ := cfg.(*Config)
 	process := &DefaultProcessor{
-		config:     config,
+		config: config,
+		// processor consumer is exporter
 		consumer:   con,
 		stopCh:     make(chan struct{}),
 		aggregator: NewDefaultAggregator(toAggregatedConfig(config.AggregateKindMap)),

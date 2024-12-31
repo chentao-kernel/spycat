@@ -2,10 +2,15 @@ package lokiexporter
 
 import (
 	"fmt"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"os"
 	"testing"
 	"time"
 )
+
+func init() {
+	log.LogInit()
+}
 
 func TestLokiClient(t *testing.T) {
 	host, _ := os.Hostname()
@@ -19,7 +24,7 @@ func TestLokiClient(t *testing.T) {
 	}
 	client := NewLokiExporter(conf)
 	for i := 0; i < 1000; i++ {
-		client.Write(fmt.Sprintf("value=%d", i))
+		client.write(fmt.Sprintf("value=%d", i))
 	}
 	time.Sleep(10 * time.Second)
 	client.ShutDown()

@@ -2,10 +2,16 @@ package util
 
 import (
 	"bufio"
+	"fmt"
+	"github.com/chentao-kernel/spycat/pkg/log"
 	"os/exec"
 	"strings"
 	"testing"
 )
+
+func init() {
+	log.LogInit()
+}
 
 func TestKprobeExists(t *testing.T) {
 	want := false
@@ -37,4 +43,26 @@ func TestTracePointExists(t *testing.T) {
 	if ret != want {
 		t.Errorf("test tracepoint failed:%s\n", "sched_switch")
 	}
+}
+
+func TestHostInfo(t *testing.T) {
+	var machine_id string
+	var ip string
+	var err error
+	var host string
+
+	machine_id, err = HostMachineId()
+	if err != nil {
+		t.Errorf("test host machine id failed")
+	}
+	ip, err = HostIp()
+	if err != nil {
+		t.Error("test host ip failed")
+	}
+	host, err = HostName()
+	if err != nil {
+		t.Error("test host name failed")
+	}
+	fmt.Printf("host info, machine_id: %s, kernel: %s, ip:%s, hostname:%s\n", machine_id,
+		HostKernelVersion(), ip, host)
 }

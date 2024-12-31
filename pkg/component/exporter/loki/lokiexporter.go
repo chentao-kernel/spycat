@@ -34,7 +34,7 @@ type LokiExporter struct {
 	quit      chan struct{}
 	waitGroup sync.WaitGroup
 	client    http.Client
-	entries   chan *LogEntry
+	entries   chan *LogEntry // entry buffer
 }
 
 func NewLokiExporter(cfg interface{}) *LokiExporter {
@@ -52,14 +52,14 @@ func NewLokiExporter(cfg interface{}) *LokiExporter {
 	return client
 }
 
-func (l *LokiExporter) Write(content string) {
+func (l *LokiExporter) write(content string) {
 	l.entries <- &LogEntry{
 		Ts:   time.Now(),
 		Line: content,
 	}
 }
 
-func (l *LokiExporter) Send(entries []*LogEntry) {
+func (l *LokiExporter) Flush(entries []*LogEntry) {
 	var streams []LogStream
 
 	streams = append(streams, LogStream{
@@ -74,9 +74,9 @@ func (l *LokiExporter) Send(entries []*LogEntry) {
 		return
 	}
 
-	resp, body, err := l.sendJson("POST", l.config.Url, "application/json", jmsg)
+	resp, body, err := l.flushJson("POST", l.config.Url, "application/json", jmsg)
 	if err != nil {
-		log.Loger.Error("loki exporter log send failed:%v", err)
+		log.Loger.Error("loki exporter log flush failed:%v", err)
 		return
 	}
 	if resp.StatusCode != 204 {
@@ -92,7 +92,7 @@ func (l *LokiExporter) Run() {
 
 	defer func() {
 		if batchSize > 0 {
-			l.Send(batch)
+			l.Flush(batch)
 		}
 		l.waitGroup.Done()
 		maxWait.Stop()
@@ -106,7 +106,7 @@ func (l *LokiExporter) Run() {
 			batch = append(batch, entry)
 			batchSize++
 			if batchSize > l.config.BatchEntriesNum {
-				l.Send(batch)
+				l.Flush(batch)
 				// init again
 				batch = []*LogEntry{}
 				batchSize = 0
@@ -114,7 +114,7 @@ func (l *LokiExporter) Run() {
 			}
 		case <-maxWait.C:
 			if batchSize > 0 {
-				l.Send(batch)
+				l.Flush(batch)
 				batch = []*LogEntry{}
 				batchSize = 0
 			}
@@ -128,7 +128,7 @@ func (l *LokiExporter) ShutDown() {
 	l.waitGroup.Wait()
 }
 
-func (l *LokiExporter) sendJson(method string, url string, ctype string, reqBody []byte) (resp *http.Response, resBody []byte, err error) {
+func (l *LokiExporter) flushJson(method string, url string, ctype string, reqBody []byte) (resp *http.Response, resBody []byte, err error) {
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, nil, err
@@ -148,12 +148,13 @@ func (l *LokiExporter) sendJson(method string, url string, ctype string, reqBody
 	return resp, resBody, nil
 }
 
+// common api
 func (l *LokiExporter) Consume(data *model.DataBlock) error {
 	jsondata, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("loki marshal data failed:%v", err)
 	}
-	l.Write(string(jsondata))
+	l.write(string(jsondata))
 	return nil
 }
 

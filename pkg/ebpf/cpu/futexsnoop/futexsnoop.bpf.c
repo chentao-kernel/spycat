@@ -186,8 +186,8 @@ int futex_exit(struct syscall_trace_exit *ctx)
 	histp = bpf_map_lookup_or_try_init(&hists_map, &hkey, &initial_hist);
 	if (!histp)
 		goto cleanup;
-
-	delta /= 1000000U;
+	/* use us unit */
+	delta /= 1000U;
 
 	slot = log2l(delta);
 	if (slot >= MAX_SLOTS)

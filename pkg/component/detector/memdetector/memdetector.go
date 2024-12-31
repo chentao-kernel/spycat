@@ -64,6 +64,10 @@ func (mem *MemDetector) formatCacheStat(e *model.SpyEvent) (*model.AttributeMap,
 			labels.AddIntValue(model.WriteSizeM, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "pid":
 			labels.AddIntValue(model.Pid, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "cpu":
+			labels.AddIntValue(model.Cpu, int64(userAttributes.GetUintValue()))
+		case userAttributes.GetKey() == "cnt":
+			labels.AddIntValue(model.Count, int64(userAttributes.GetUintValue()))
 		case userAttributes.GetKey() == "comm":
 			labels.AddStringValue(model.Comm, string(userAttributes.GetValue()))
 		case userAttributes.GetKey() == "file":

@@ -14,6 +14,7 @@ import (
 	"github.com/chentao-kernel/spycat/pkg/component/exporter"
 	lokiexporter "github.com/chentao-kernel/spycat/pkg/component/exporter/loki"
 	spyexporter "github.com/chentao-kernel/spycat/pkg/component/exporter/spy"
+	sqlitexporter "github.com/chentao-kernel/spycat/pkg/component/exporter/sqlite"
 	"github.com/chentao-kernel/spycat/pkg/component/processor"
 	"github.com/chentao-kernel/spycat/pkg/component/receiver"
 	"github.com/chentao-kernel/spycat/pkg/core/model"
@@ -106,6 +107,9 @@ func NewExporter(cfg *Config) exporter.Exporter {
 			BatchEntriesNum: 10000,
 		}
 		eper = lokiexporter.NewLokiExporter(conf)
+	case model.SQLITE:
+		conf := sqlitexporter.NewConfig()
+		eper = sqlitexporter.NewSqliteExporter(conf)
 	// pyroscope exporter init in cpudetector
 	// only support for oncpu, prometheus influxdb no support
 	case model.PYROSCOPE, model.PROMETHEUS, model.INFLUXDB:

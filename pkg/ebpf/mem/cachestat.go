@@ -25,16 +25,19 @@ import "C"
 
 type CacheStat struct {
 	Pid       uint32
-	pad       uint32
+	Cpu       uint32
 	Comm      [16]byte
 	File      [64]byte
 	ReadSize  uint64
 	WriteSize uint64
+	Cnt       uint64
 }
 
 type CacheStatArgs struct {
 	Pid       uint32
 	CacheType uint32
+	Cpu       uint32
+	Pad       uint32
 }
 
 type CacheStatSession struct {
@@ -53,6 +56,7 @@ func NewCacheStatBpfSession(name string, cfg *config.CACHESTAT, buf chan *model.
 		Args: CacheStatArgs{
 			Pid:       uint32(cfg.Pid),
 			CacheType: uint32(cfg.CacheType),
+			Cpu:       uint32(cfg.Cpu),
 		},
 		BtfPath: cfg.BtfPath,
 		ticker:  time.NewTicker(cfg.UploadRate),
@@ -79,6 +83,7 @@ func (b *CacheStatSession) initArgsMap() error {
 	args := &CacheStatArgs{
 		Pid:       b.Args.Pid,
 		CacheType: b.Args.CacheType,
+		Cpu:       b.Args.Cpu,
 	}
 	maps, err := b.Module.GetMap("args_map")
 	if err != nil {
@@ -129,6 +134,8 @@ func (b *CacheStatSession) Reset() error {
 	for _, value := range values {
 		v := (*C.struct_cache_info)(unsafe.Pointer(&value[0]))
 		pid := uint32(v.pid)
+		cpu := uint32(v.cpu)
+		cnt := uint64(v.cnt)
 		comm := C.GoString(&v.comm[0])
 		file := C.GoString(&v.file[0])
 		read_size := uint64(v.read_size)
@@ -142,6 +149,8 @@ func (b *CacheStatSession) Reset() error {
 		event.SetUserAttributeWithByteBuf("comm", []byte(comm))
 		event.SetUserAttributeWithByteBuf("file", []byte(file))
 		event.SetUserAttributeWithUint32("pid", pid)
+		event.SetUserAttributeWithUint32("cpu", cpu)
+		event.SetUserAttributeWithUint64("cnt", cnt)
 		event.SetUserAttributeWithUint64("read_size_m", read_size)
 		event.SetUserAttributeWithUint64("write_size_m", write_size)
 		// fmt.Printf("pid:%d,comm:%s,file:%s,read_size:%d,write_size:%d\n", pid, comm, file, read_size, write_size)

@@ -7,6 +7,7 @@ const (
 	DISK       = "disk"
 	INFLUXDB   = "influxdb"
 	PYROSCOPE  = "pyroscope"
+	SQLITE     = "sqlite"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 	OffCpuMetricName     = "offcpu_dur_ms"
 	FutexMaxUerCountName = "max_futex_user_cnt"
 	CacheStatMetricName  = "cachestat_read_size"
+	OnCpuMetricName      = "oncpu_hit_count"
+	SyscallMetricName    = "syscall_dur_us"
 )
 
 // for labels
@@ -80,6 +83,7 @@ const (
 	ReadSizeM  = "read_size_m"
 	WriteSizeM = "write_size_m"
 	File       = "file"
+	Count      = "count"
 )
 
 const (

@@ -11,6 +11,7 @@ usage: ./build.sh [-h|--help -b|--build -c|--compile -t|--tar -V|--bin_ver -p|--
 	-t              tar binary
         -V 0.1.2 -t     tar binary with 0.1.2 version
 	-p 		add docker proxy
+	-u 		add docker user
 EOF
 
 die() {
@@ -64,6 +65,11 @@ compile_bin() {
         else
                 die "compile bin failed"
         fi
+}
+
+docker_user() {
+	sudo groupadd docker
+	sudo usermod -aG docker $USER
 }
 
 docker_proxy() {
@@ -124,6 +130,10 @@ parse_arguments() {
                                 ;;
                         -p|--proxy)
 				docker_proxy
+				shift 1
+				;;
+			-u|--user)
+				docker_user
 				shift 1
 				;;
                         *)

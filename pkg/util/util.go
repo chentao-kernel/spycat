@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +16,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/chentao-kernel/spycat/pkg/log"
+)
+
+var (
+	eventDataTransform = strings.NewReplacer(" ", "_")
 )
 
 const cpuOnline = "/sys/devices/system/cpu/online"
@@ -244,4 +249,58 @@ func TimeToBootOffset(ts time.Time) uint64 {
 		return 0
 	}
 	return uint64(nsec)
+}
+
+func HostUUID() (string, error) {
+	// should use root tot read uuid
+	data, err := os.ReadFile("/sys/class/dmi/id/product_uuid")
+	if err != nil {
+		return "", fmt.Errorf("read uuid failed:%v", err)
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func HostMachineId() (string, error) {
+	data, err := os.ReadFile("/etc/machine-id")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func HostKernelVersion() string {
+	data, err := os.ReadFile("/proc/version_signature")
+	if err != nil {
+		return ""
+	}
+	return eventDataTransform.Replace(string(data))
+}
+
+func HostName() (string, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+	return hostname, nil
+}
+
+func HostIp() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range interfaces {
+		if strings.Contains(iface.Name, "eth0") {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				return "", err
+			}
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+					return ipnet.IP.String(), nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("eth0 addr not found")
 }
