@@ -9,7 +9,6 @@ import (
 	"time"
 
 	iner "github.com/chentao-kernel/spycat/internal"
-	"github.com/chentao-kernel/spycat/pkg/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,7 +30,7 @@ func (l *Logger) SetLevel(level logrus.Level) {
 	Loger.logger.SetLevel(Loger.level)
 }
 
-func levelTransform(level string) logrus.Level {
+func LevelTransform(level string) logrus.Level {
 	switch level {
 	case "PANIC":
 		return logrus.InfoLevel
@@ -51,26 +50,16 @@ func levelTransform(level string) logrus.Level {
 	return logrus.InfoLevel
 }
 
-func NewLogger() *Logger {
-	var configPath string
-	var level logrus.Level
-
-	if config.ConfigGlobal != nil {
-		configPath = config.ConfigGlobal.Log.Path
-		level = levelTransform(config.ConfigGlobal.Log.Level)
-	} else {
-		configPath = PATH
-		level = logrus.InfoLevel
-	}
-	if !iner.Exists(configPath) {
-		err := os.MkdirAll(configPath, 0755)
+func NewLogger(filePath string, level logrus.Level) *Logger {
+	if !iner.Exists(filePath) {
+		err := os.MkdirAll(filePath, 0755)
 		if err != nil {
-			log.Fatalf("mkdir %s failed.", configPath)
+			log.Fatalf("mkdir %s failed.", filePath)
 		}
 	}
 
 	fileName := time.Now().Format("20060102_15:04:05") + ".log"
-	file, err := os.OpenFile(configPath+"/"+fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(filePath+"/"+fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic(fmt.Sprintf("New logger failed:%v", err))
 	}
@@ -84,8 +73,8 @@ func NewLogger() *Logger {
 	}
 }
 
-func LogInit() {
-	Loger = NewLogger()
+func LogInit(filePath string, level logrus.Level) {
+	Loger = NewLogger(filePath, level)
 	Loger.logger.SetOutput(Loger.file)
 	Loger.logger.SetLevel(Loger.level)
 	// output file name and function name

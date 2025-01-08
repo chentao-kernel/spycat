@@ -37,7 +37,7 @@ func main() {
 		fmt.Printf("%v", err)
 	}
 	// init log
-	log.LogInit()
+	log.LogInit(config.YamlConfigGlobal.Log.Path, log.LevelTransform(config.YamlConfigGlobal.Log.Level))
 
 	sigCh := make(chan os.Signal, 1)
 	if os.Getenv("ENABLE_SPYCAT_PPROF") == "true" {
@@ -50,11 +50,20 @@ func main() {
 	}
 
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	cmd := app.NewCmd()
-	app.SubCmdInit(cmd)
-	// app.Start()
-	// go uprobe.NewBpfSession("uprobe", &core.SessionConfig{}).Start()
-	cmd.RootCmd.Execute()
+	// run with yaml
+	if config.ConfigWithYaml() {
+		err := config.RunWithYaml()
+		if err != nil {
+			log.Loger.Error("run with yaml failed:%v\n", err)
+		}
+	} else {
+		// run with cmd
+		cmd := app.NewCmd()
+		app.SubCmdInit(cmd)
+		// app.Start()
+		// go uprobe.NewBpfSession("uprobe", &core.SessionConfig{}).Start()
+		cmd.RootCmd.Execute()
+	}
 	// waitSignal(sigCh)
 }
 

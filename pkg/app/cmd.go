@@ -199,7 +199,7 @@ func newOffCpuSpyCmd(cfg *config.OFFCPU) *cobra.Command {
 			return RunSpy(cfg, conf, func(cfg interface{}, buf chan *model.SpyEvent) core.BpfSpyer {
 				config, ok := cfg.(*config.OFFCPU)
 				if ok {
-					return cpu.NewOffCpuBpfSession(model.OnCpu, config, buf)
+					return cpu.NewOffCpuBpfSession(model.OffCpu, config, buf)
 				}
 				return nil
 			})

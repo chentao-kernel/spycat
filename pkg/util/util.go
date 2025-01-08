@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -303,4 +304,36 @@ func HostIp() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("eth0 addr not found")
+}
+
+func CopyStruct(src interface{}, dest interface{}) error {
+	srcVal := reflect.ValueOf(src)
+	destVal := reflect.ValueOf(dest)
+
+	if srcVal.Kind() == reflect.Ptr {
+		if srcVal.IsNil() {
+			return errors.New("src pointer is nil")
+		}
+		srcVal = srcVal.Elem()
+	}
+
+	if destVal.Kind() == reflect.Ptr {
+		if destVal.IsNil() {
+			return errors.New("dest pointer is nil")
+		}
+		destVal = destVal.Elem()
+	}
+
+	if srcVal.Kind() != reflect.Struct {
+		return errors.New("src must be a struct")
+	}
+	if destVal.Kind() != reflect.Struct {
+		return errors.New("dest must be a struct")
+	}
+
+	for i := 0; i < srcVal.NumField(); i++ {
+		destVal.Field(i).Set(srcVal.Field(i))
+	}
+
+	return nil
 }

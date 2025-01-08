@@ -158,13 +158,13 @@ func (d *DefaultProcessor) Consume(data *model.DataBlock) error {
 		fallthrough
 	case model.FutexSnoop:
 		fallthrough
+	case model.OnCpu:
+		fallthrough
 	case model.CacheStat:
 		err := d.consumer.Consume(data)
 		if err != nil {
 			log.Loger.Error("exporter consume data failed:%v", err)
 		}
-	// oncpu直接upstream
-	case model.OnCpu:
 	}
 	return nil
 }

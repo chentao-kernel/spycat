@@ -23,6 +23,7 @@ import (
 
 const (
 	DetectorCpuType string = "detector_cpu"
+	DefaultServer   string = "http://localhost:4040"
 )
 
 var nanoToSeconds uint64 = 1e9
@@ -85,6 +86,11 @@ func (c *CpuDetector) initializeTries(appName string) {
 func (c *CpuDetector) Init(cfg any) error {
 	conf, ok := cfg.(*config.ONCPU)
 	if ok {
+		c.Server = conf.Server
+		if c.Server != DefaultServer {
+			return nil
+		}
+
 		// init upstream parameter
 		rc := remote.RemoteConfig{
 			AuthToken:              "", // cfg.AuthToken,
@@ -196,6 +202,7 @@ func (c *CpuDetector) ProcessEvent(e *model.SpyEvent) error {
 					c.initializeTries(appName)
 				}
 				// insert the stackinfo into trie tree
+				// c.UploadTries will upload to upatream
 				c.tries[appName][0].Insert(stack, v, true)
 				// fmt.Printf("tao name:%s, stack:%s, count:%d, sample:%d\n", appName, string(stack), v, c.sampleRate)
 			}
@@ -393,7 +400,13 @@ func (c *CpuDetector) oncpuHandler(e *model.SpyEvent, cb func(string, []byte, ui
 			c.sampleRate = uint32(userAttributes.GetUintValue())
 		}
 	}
-	cb(e.Name, stack, count)
+	// TODO distinguish server info for upstream
+	// upload upstream should config server info, otherwise use local exporter
+	// like sqlite etc.
+	if c.Server != DefaultServer {
+		cb(e.Name, stack, count)
+		return nil, nil
+	}
 	labels.AddIntValue(model.Pid, int64(e.Task.Pid))
 	labels.AddIntValue(model.Tid, int64(e.Task.Tid))
 	labels.AddStringValue(model.Comm, strings.Replace(string(e.Task.Comm), "\u0000", "", -1))
