@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	appspy "github.com/chentao-kernel/spycat/internal/app"
@@ -154,7 +155,8 @@ type ProcessorConfig struct {
 }
 
 type ExporterConfig struct {
-	Type string `yaml:"type"`
+	Type   string `yaml:"type"`
+	Server string `yamml:"server"`
 }
 
 type Config struct {
@@ -162,6 +164,32 @@ type Config struct {
 	Inputs     []InputConfig     `yaml:"inputs"`
 	Processors []ProcessorConfig `yaml:processors`
 	Exporters  []ExporterConfig  `yaml:exporters`
+}
+
+func appName() string {
+	var app string
+
+	version := util.HostKernelVersion()
+	// 5.15.0-100.110~20.04.1-generic
+	verNum := strings.Split(version, "-")
+	if len(verNum) > 0 {
+		version = verNum[0]
+	}
+	app += version
+
+	hostname, err := util.HostName()
+	if err != nil {
+		hostname = "unknown"
+	}
+	app = app + "_" + hostname
+
+	machineId, err := util.HostMachineId()
+	if err != nil {
+		machineId = "00000000"
+	}
+	app = app + "_" + machineId[:8]
+
+	return app
 }
 
 var defaultConfig = Config{
@@ -174,13 +202,13 @@ var defaultConfig = Config{
 			Type: "futexsnoop",
 			Config: &config.FUTEXSNOOP_YAML{
 				LogLevel:        "INFO",
-				AppName:         "futexsnoop_app",
+				AppName:         "futexsnoop" + "_" + appName(),
 				Pid:             0,
 				Tid:             0,
 				MaxDurMs:        1000000,
 				MinDurMs:        1000,
 				SymbolCacheSize: 256,
-				Exporter:        "sqlite",
+				Exporter:        "",
 				Status:          "disable",
 			},
 		},
@@ -188,14 +216,14 @@ var defaultConfig = Config{
 			Type: "syscall",
 			Config: &config.SYSCALL_YAML{
 				LogLevel:        "INFO",
-				AppName:         "syscall_app",
+				AppName:         "syscall" + "_" + appName(),
 				Pid:             0,
 				Tid:             0,
 				MaxDurMs:        10000,
 				MinDurMs:        1,
 				SymbolCacheSize: 256,
 				Stack:           false,
-				Exporter:        "sqlite",
+				Exporter:        "",
 				Status:          "disable",
 			},
 		},
@@ -203,12 +231,12 @@ var defaultConfig = Config{
 			Type: "offcpu",
 			Config: &config.OFFCPU_YAML{
 				LogLevel:        "INFO",
-				AppName:         "offcpu_app",
+				AppName:         "offcpu" + "_" + appName(),
 				Pid:             -1,
-				MaxOffcpuMs:     1000000000,
-				MinOffcpuMs:     0,
+				MaxOffcpuMs:     10000,
+				MinOffcpuMs:     5,
 				SymbolCacheSize: 256,
-				Exporter:        "sqlite",
+				Exporter:        "",
 				Status:          "disable",
 			},
 		},
@@ -216,31 +244,39 @@ var defaultConfig = Config{
 			Type: "oncpu",
 			Config: &config.ONCPU_YAML{
 				LogLevel:        "INFO",
-				AppName:         "oncpu_app",
+				AppName:         "oncpu" + "_" + appName(),
 				Cpu:             "-1",
 				SymbolCacheSize: 256,
-				Exporter:        "sqlite",
+				UploadRate:      10,
+				UploadThreads:   2,
+				UploadTimeout:   5,
+				Exporter:        "",
 				Status:          "disable",
 			},
 		},
 		{
 			Type: "cachestat",
 			Config: &config.CACHESTAT_YAML{
-				LogLevel:  "INFO",
-				AppName:   "cachestat_app",
-				Pid:       -1,
-				CacheType: 0,
-				Cpu:       -1,
-				Exporter:  "sqlite",
-				Status:    "disable",
+				LogLevel:   "INFO",
+				AppName:    "cachestat" + "_" + appName(),
+				Pid:        -1,
+				CacheType:  0,
+				Cpu:        -1,
+				UploadRate: 10,
+				Exporter:   "",
+				Status:     "disable",
 			},
 		},
 	},
+	// not support
 	Processors: []ProcessorConfig{
 		{Type: "processor_default"},
 	},
 	Exporters: []ExporterConfig{
-		{Type: "exporter_stdout"},
+		{
+			Type:   model.DISK,
+			Server: "/tmp/spycat/",
+		},
 	},
 }
 
@@ -311,8 +347,8 @@ func RunWithYaml() error {
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 
 	cf := &appspy.Config{
-		Exporter: "sqlite",
-		Server:   "http://localhost:4040",
+		Exporter: YamlConfigGlobal.Exporters[0].Type,
+		Server:   YamlConfigGlobal.Exporters[0].Server,
 	}
 	spy, err := appspy.NewAppSpy(cf)
 	if err != nil {
