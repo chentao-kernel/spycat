@@ -1,7 +1,9 @@
 <div align=center> <img src="doc/logo.png" width = "30%" height="30%" /> </div>
+
 An eBPF observable agent to solve os performance issue in kernel or app like bcc tool.
 These tools developed refer to bcc which are really useful for solving os issue and some
 new feature added.
+
 * support more kernel version
 * support data store with third-party database
 * ...
@@ -31,15 +33,20 @@ continus profiling to detect cpu burst issue, data can be stored in pyroscope
 detect task scheduling not timely issue, like web app timeout etc.
 - [X] `futexsnoop`
 detect multitasking lock contention issue
+- [X] `syscall`
+detect syscall latency, like read, connect etc.
 #### mem subsystem
+- [X] `cachestat`
+detect which file and which task have caused a large amount of page cache
 #### io subsystem
 #### net subsystem
 
 ### Exporter List
 - [X] tmerminal
-- [X] local storage
+- [X] local file
 - [X] loki
 - [X] pyroscope
+- [X] sqlite
 - [ ] influxdb
 - [ ] prometheus
 
@@ -70,6 +77,7 @@ FLAGS         DEFAULT VALUES
 Run 'Spycat SUBCOMMAND --help' for more information on a subcommand.
 ```
 ##### futexsnoop for example
+###### run with cmd mode
 ```
 sudo ./spycat futexsnoop -h
 FLAGS                     DEFAULT VALUES
@@ -95,6 +103,33 @@ FLAGS                     DEFAULT VALUES
     target lock addr
   --tid                  0
     tid to trace, -1 to trace all tids
+```
+###### run with yaml mode
+```
+log:
+    path: /tmp/spycat/
+    level: INFO
+inputs:
+    - type: futexsnoop
+      config:
+        log_level: INFO
+        app_name: futexsnoop_Ubuntu_5.15.0_lavm-93jzz7gepo_359152b2
+        server: ""
+        pid: 0
+        tid: 0
+        max_dur_ms: 1000000
+        min_dur_ms: 1000
+        symbol_cache_size: 256
+        max_lock_hold_users: 0
+        target_lock: false
+        btf_path: ""
+        exporter: ""
+        status: enable
+processors:
+    - type: processor_default
+exporters:
+    - type: disk
+      server: /tmp/spycat/
 ```
 ### How to develop
 ## Os Support
